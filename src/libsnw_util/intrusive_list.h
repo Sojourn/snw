@@ -76,7 +76,7 @@ class intrusive_list_iterator : public intrusive_list_const_iterator<T, member_n
 public:
     using iterator = intrusive_list_iterator;
 
-    using value_type = std::remove_cv_t<T>;
+    using value_type = typename std::remove_cv<T>::type;
     using pointer = T*;
     using reference = T&;
     using iterator_category = std::bidirectional_iterator_tag;

@@ -26,7 +26,9 @@ public:
     const T* operator->() const;
 
 private:
-    std::aligned_storage_t<sizeof(T), alignof(T)> storage_;
+    using storage = typename std::aligned_storage<sizeof(T), alignof(T)>::type;
+
+    storage storage_;
 };
 
 #include "box.hpp"

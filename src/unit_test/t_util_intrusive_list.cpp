@@ -3,8 +3,10 @@
 #include <vector>
 
 struct node {
-    int value{ 0 };
+    int value;
     snw::intrusive_list_node il_node{};
+
+    node(int value = 0): value(value) {}
 };
 
 struct node_a : node {
@@ -33,8 +35,8 @@ TEST_CASE("empty list") {
 
 TEST_CASE("push back") {
     list l;
-    node n1{ 1 };
-    node n2{ 2 };
+    node n1(1);
+    node n2(2);
 
     l.push_back(n1);
     CHECK(!l.empty());
@@ -49,8 +51,8 @@ TEST_CASE("push back") {
 
 TEST_CASE("push front") {
     list l;
-    node n1{ 1 };
-    node n2{ 2 };
+    node n1(1);
+    node n2(2);
 
     l.push_front(n1);
     REQUIRE(equals(l, {1}));
@@ -61,7 +63,7 @@ TEST_CASE("push front") {
 
 TEST_CASE("insert at beginning of empty list") {
     list l;
-    node n1{ 1 };
+    node n1(1);
 
     l.insert(l.begin(), n1);
     CHECK(equals(l, {1}));
@@ -69,8 +71,8 @@ TEST_CASE("insert at beginning of empty list") {
 
 TEST_CASE("insert at beginning of non-empty list") {
     list l;
-    node n1{ 1 };
-    node n2{ 2 };
+    node n1(1);
+    node n2(2);
 
     l.push_back(n1);
     l.insert(l.begin(), n2);
@@ -79,7 +81,7 @@ TEST_CASE("insert at beginning of non-empty list") {
 
 TEST_CASE("insert at end of empty list") {
     list l;
-    node n1{ 1 };
+    node n1(1);
 
     l.insert(l.end(), n1);
     CHECK(equals(l, {1}));
@@ -87,8 +89,8 @@ TEST_CASE("insert at end of empty list") {
 
 TEST_CASE("insert at end of non-empty list") {
     list l;
-    node n1{ 1 };
-    node n2{ 2 };
+    node n1(1);
+    node n2(2);
 
     l.push_back(n1);
     l.insert(l.end(), n2);
@@ -97,9 +99,9 @@ TEST_CASE("insert at end of non-empty list") {
 
 TEST_CASE("insert in the middle of a list") {
     list l;
-    node n1{ 1 };
-    node n2{ 2 };
-    node n3{ 3 };
+    node n1(1);
+    node n2(2);
+    node n3(3);
 
     l.push_back(n1);
     l.push_back(n2);
@@ -109,9 +111,9 @@ TEST_CASE("insert in the middle of a list") {
 }
 
 TEST_CASE("explicit clear") {
-    node n1{ 1 };
-    node n2{ 2 };
-    node n3{ 3 };
+    node n1(1);
+    node n2(2);
+    node n3(3);
 
     list l;
     l.push_back(n1);
@@ -129,9 +131,9 @@ TEST_CASE("explicit clear") {
 }
 
 TEST_CASE("implicit clear") {
-    node n1{ 1 };
-    node n2{ 2 };
-    node n3{ 3 };
+    node n1(1);
+    node n2(2);
+    node n3(3);
 
     {
         list l;
@@ -172,9 +174,9 @@ TEST_CASE("implicit unlink") {
 }
 
 TEST_CASE("explicit unlink") {
-    node n1{ 1 };
-    node n2{ 2 };
-    node n3{ 3 };
+    node n1(1);
+    node n2(2);
+    node n3(3);
 
     {
         list l;
@@ -206,9 +208,9 @@ TEST_CASE("explicit unlink") {
 }
 
 TEST_CASE("erase") {
-    node n1{ 1 };
-    node n2{ 2 };
-    node n3{ 3 };
+    node n1(1);
+    node n2(2);
+    node n3(3);
 
     {
         list l;
