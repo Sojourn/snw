@@ -16,7 +16,10 @@ public:
     state transition(event e, state s) const;
 
 private:
-    uint8_t table_[256][16];
+    union {
+        uint8_t table_[256][16];
+        int128_t sse_table_[256];
+    };
 };
 
 // deterministic finite automaton
@@ -30,10 +33,10 @@ public:
     state run(const event* ev, size_t ev_cnt);
     state run(event e);
 
-    template <typename TransitionObserver>
+    template<typename TransitionObserver>
     state run(const event* ev, size_t ev_cnt, TransitionObserver&& transition_observer);
 
-    template <typename TransitionObserver>
+    template<typename TransitionObserver>
     state run(event e, TransitionObserver&& transition_observer);
 
     state current_state() const;
@@ -75,7 +78,7 @@ inline dfa16_state_machine::state dfa16_state_machine::run(event e)
     return (state_ = s1);
 }
 
-template <typename TransitionObserver>
+template<typename TransitionObserver>
 inline dfa16_state_machine::state dfa16_state_machine::run(const event* ev, size_t ev_cnt, TransitionObserver&& transition_observer)
 {
     state s = current_state();
@@ -87,7 +90,7 @@ inline dfa16_state_machine::state dfa16_state_machine::run(const event* ev, size
     return s;
 }
 
-template <typename TransitionObserver>
+template<typename TransitionObserver>
 inline dfa16_state_machine::state dfa16_state_machine::run(event e, TransitionObserver&& transition_observer)
 {
     state s0 = state_;
