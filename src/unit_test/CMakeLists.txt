@@ -1,7 +1,8 @@
 set(SNW_SRCS
     main.cpp
     t_util_intrusive_list.cpp
-    t_util_box.cpp
+    t_util_dfa16_state_machine.cpp
+    t_mem_box.cpp
 )
 
 set(SNW_HDRS
