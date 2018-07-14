@@ -1,5 +1,6 @@
 set(SNW_SRCS
     snw_util.cpp
+    dfa16_state_machine.cpp
 )
 
 set(SNW_HDRS
