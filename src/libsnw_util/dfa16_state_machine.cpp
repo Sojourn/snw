@@ -4,6 +4,7 @@
 snw::dfa16_transition_table::dfa16_transition_table(state default_state)
     : table_()
 {
+    assert(default_state < 16);
     memset(table_, default_state, sizeof(table_));
 }
 
@@ -18,4 +19,5 @@ snw::dfa16_state_machine::dfa16_state_machine(const dfa16_transition_table* tran
     : transitions_(transitions)
     , state_(initial_state)
 {
+    assert(initial_state < 16);
 }
