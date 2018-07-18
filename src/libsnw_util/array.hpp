@@ -116,7 +116,7 @@ bool snw::array<T, capacity_>::insert(const_iterator pos, T value)
         return false;
     }
 
-    // rotate up
+    // shift existing values up
     size_t off = pos - begin();
     for(size_t i = size_; i > off; --i) {
         data_[i].create(data_[i - 1].release());
@@ -147,7 +147,7 @@ void snw::array<T, capacity_>::erase(const_iterator pos)
 
     data_[off].destroy();
 
-    // shift down
+    // shift remaining values down
     for(size_t i = off; i < (size_ - 1); ++i) {
         data_[i].create(data_[i + 1].release());
     }
