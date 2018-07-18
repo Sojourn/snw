@@ -5,6 +5,9 @@ set(SNW_SRCS
 
 set(SNW_HDRS
     snw_util.h
+    box.h
+    box.hpp
+    array.h
     intrusive_list.h
     intrusive_list.hpp
     dfa16_state_machine.h

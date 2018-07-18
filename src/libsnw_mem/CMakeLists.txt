@@ -4,8 +4,6 @@ set(SNW_SRCS
 
 set(SNW_HDRS
     snw_mem.h
-    box.h
-    box.hpp
 )
 
 add_library(snw_mem ${SNW_SRCS} ${SNW_HDRS})
