@@ -5,6 +5,8 @@ set(SNW_SRCS
 
 set(SNW_HDRS
     snw_util.h
+    align.h
+    platform.h
     box.h
     box.hpp
     array.h
