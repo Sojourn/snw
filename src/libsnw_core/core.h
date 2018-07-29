@@ -1,23 +1,11 @@
 #pragma once
 
 #include <tuple>
-#include "intrusive_list.h"
+#include <cassert>
 #include "find_type.h"
+#include "subscription_list.h"
 
 namespace snw {
-
-template<template<typename> class Module, typename... Events>
-struct subscription_list;
-
-template<template<typename> class Module>
-struct subscription_list<Module> {
-};
-
-// template<typename ModuleTuple, typename Event, int index=0>
-// struct EventDispatcher {
-//     void operator()(ModuleTuple& modules, const Event& event) {
-//     }
-// };
 
 template<template<typename> class... Modules>
 class core {

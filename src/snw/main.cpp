@@ -81,11 +81,12 @@ private:
 
 namespace snw {
     template<>
-    struct subscription_list<
-        memory_audit_module,
-        allocation_event,
-        deallocation_event
-    > {};
+    struct subscription_list<memory_audit_module> {
+        using events = event_list<
+            allocation_event,
+            deallocation_event
+        >;
+    };
 }
 
 int main(int argc, char** argv) {
@@ -102,6 +103,9 @@ int main(int argc, char** argv) {
         auto chunk = memory.allocate(16);
         memory.deallocate(chunk, 16);
     }
+
+    std::cout << snw::detail::is_subscribed<memory_module, allocation_event>() << std::endl;
+    std::cout << snw::detail::is_subscribed<memory_audit_module, allocation_event>() << std::endl;
 
 #ifdef SNW_OS_WINDOWS
     std::system("pause");

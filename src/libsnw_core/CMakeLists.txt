@@ -5,6 +5,7 @@ set(SNW_SRCS
 set(SNW_HDRS
     snw_core.h
     core.h
+    subscription_list.h
 )
 
 set(SNW_LIBS
