@@ -31,10 +31,10 @@ public:
         std::get<index>(modules_) = module;
     }
 
-    template<template<typename> class Module>
-    void unregister_module() {
+    template<typename Module>
+    void unregister_module(Module*) {
         enum {
-            index = find_module<Module>()
+            index = find_qualified_module<Module>()
         };
         static_assert(index >= 0, "Add module to core");
         std::get<index>(modules_) = nullptr;
@@ -42,6 +42,15 @@ public:
 
     template<template<typename> class Module>
     Module<core<Modules...>>& get() {
+        enum {
+            index = find_module<Module>()
+        };
+        static_assert(index >= 0, "Add module to core");
+        return *std::get<index>(modules_);
+    }
+
+    template<template<typename> class Module>
+    const Module<core<Modules...>>& get() const {
         enum {
             index = find_module<Module>()
         };

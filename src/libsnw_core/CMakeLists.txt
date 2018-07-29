@@ -5,6 +5,7 @@ set(SNW_SRCS
 set(SNW_HDRS
     snw_core.h
     core.h
+    module.h
     subscription_list.h
 )
 

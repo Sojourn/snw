@@ -13,22 +13,18 @@ struct deallocation_event {
     size_t size;
 };
 
-template<typename core>
-class memory_module {
+template<typename Core>
+class memory_module : public snw::module<Core, memory_module> {
+    using module = snw::module<Core, memory_module>;
 public:
-    memory_module(core& c)
-        : core_(c)
+    memory_module(Core& core)
+        : module(core)
     {
-        core_.register_module(this);
-    }
-
-    ~memory_module() {
-        core_.template unregister_module<memory_module>();
     }
 
     void* allocate(size_t size) {
         void* addr = ::malloc(size);
-        emit_event(allocation_event{
+        this->emit_event(allocation_event{
             addr,
             size
         });
@@ -36,34 +32,21 @@ public:
     }
 
     void deallocate(void* addr, size_t size) {
-        emit_event(deallocation_event{
+        this->emit_event(deallocation_event{
             addr,
             size
         });
         ::free(addr);
     }
-
-private:
-    template<typename Event>
-    void emit_event(const Event& event) {
-        core_.template emit_event(event);
-    }
-
-private:
-    core& core_;
 };
 
-template<typename core>
-class memory_audit_module {
+template<typename Core>
+class memory_audit_module : public snw::module<Core, memory_audit_module> {
+    using module = snw::module<Core, memory_audit_module>;
 public:
-    memory_audit_module(core& cr)
-        : core_(cr)
+    memory_audit_module(Core& core)
+        : module(core)
     {
-        core_.register_module(this);
-    }
-
-    ~memory_audit_module() {
-        core_.template unregister_module<memory_audit_module>();
     }
 
     void handle_event(const allocation_event& event) {
@@ -75,9 +58,6 @@ public:
         (void)event;
         std::cout << "free" << std::endl;
     }
-
-private:
-    core& core_;
 };
 
 namespace snw {
@@ -91,14 +71,16 @@ namespace snw {
 }
 
 int main(int argc, char** argv) {
-    using core = snw::core<
+    using my_core = snw::core<
         memory_module,
         memory_audit_module
     >;
 
-    core cr;
-    memory_module<core> memory(cr);
-    memory_audit_module<core> memory_audit(cr);
+    my_core core;
+    memory_module<my_core> memory(core);
+    memory_audit_module<my_core> memory_audit(core);
+
+    // std::cout << memory.is_subscribed<allocation_event>() << std::endl;
 
     {
         auto chunk = memory.allocate(16);
