@@ -6,6 +6,7 @@
 namespace snw {
 namespace detail {
 
+// TODO: replace with 'if constexpr'
 template<bool subscribed>
 struct notify_event;
 
@@ -32,7 +33,7 @@ struct dispatch_event_util<index, Module, Modules...> {
     template<typename ModuleTuple, typename Event>
     void operator()(ModuleTuple& modules, const Event& event) {
         auto module = std::get<index>(modules);
-        assert(module);
+        assert(module && "is module registered?");
 
         notify_event<is_subscribed<Module, Event>()> notifier;
         notifier(*module, event);
