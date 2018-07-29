@@ -19,6 +19,7 @@ public:
     memory_module(core& c)
         : core_(c)
     {
+        core_.register_module(this);
     }
 
     ~memory_module() {
@@ -103,9 +104,6 @@ int main(int argc, char** argv) {
         auto chunk = memory.allocate(16);
         memory.deallocate(chunk, 16);
     }
-
-    std::cout << snw::detail::is_subscribed<memory_module, allocation_event>() << std::endl;
-    std::cout << snw::detail::is_subscribed<memory_audit_module, allocation_event>() << std::endl;
 
 #ifdef SNW_OS_WINDOWS
     std::system("pause");

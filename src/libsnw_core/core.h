@@ -4,6 +4,7 @@
 #include <cassert>
 #include "find_type.h"
 #include "subscription_list.h"
+#include "event_dispatcher.h"
 
 namespace snw {
 
@@ -48,9 +49,11 @@ public:
         return *std::get<index>(modules_);
     }
 
+    // Forward an event to subscribed modules
     template<typename Event>
     void emit_event(const Event& event) {
-        // TODO
+        dispatch_event<Modules...> dispatcher;
+        dispatcher(modules_, event);
     }
 
 private:
