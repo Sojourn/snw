@@ -7,6 +7,7 @@ set(SNW_HDRS
 
 set(SNW_LIBS
     snw_util
+    snw_core
     snw_mem
 )
 

@@ -4,6 +4,7 @@ set(SNW_SRCS
     t_util_array.cpp
     t_util_intrusive_list.cpp
     t_util_dfa16_state_machine.cpp
+    t_util_find_type.cpp
 )
 
 set(SNW_HDRS
@@ -12,6 +13,7 @@ set(SNW_HDRS
 
 set(SNW_LIBS
     snw_util
+    snw_core
     snw_mem
 )
 

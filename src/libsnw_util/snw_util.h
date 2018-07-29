@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "platform.h"
 
 namespace snw {
 
