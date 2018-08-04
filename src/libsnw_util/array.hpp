@@ -61,6 +61,12 @@ bool snw::array<T, capacity_>::empty() const
 }
 
 template<typename T, size_t capacity_>
+bool snw::array<T, capacity_>::full() const
+{
+    return (size_ == capacity_);
+}
+
+template<typename T, size_t capacity_>
 typename snw::array<T, capacity_>::iterator snw::array<T, capacity_>::begin()
 {
     return data_[0].operator->();
@@ -82,6 +88,34 @@ template<typename T, size_t capacity_>
 typename snw::array<T, capacity_>::const_iterator snw::array<T, capacity_>::end() const
 {
     return data_[size_].operator->();
+}
+
+template<typename T, size_t capacity_>
+T& snw::array<T, capacity_>::front()
+{
+    assert(!empty());
+    return *begin();
+}
+
+template<typename T, size_t capacity_>
+const T& snw::array<T, capacity_>::front() const
+{
+    assert(!empty());
+    return *begin();
+}
+
+template<typename T, size_t capacity_>
+T& snw::array<T, capacity_>::back()
+{
+    assert(!empty());
+    return *(end() - 1);
+}
+
+template<typename T, size_t capacity_>
+const T& snw::array<T, capacity_>::back() const
+{
+    assert(!empty());
+    return *(end() - 1);
 }
 
 template<typename T, size_t capacity_>

@@ -1,9 +1,11 @@
 set(SNW_SRCS
     snw_mem.cpp
+    page_list.cpp
 )
 
 set(SNW_HDRS
     snw_mem.h
+    page_list.h
 )
 
 set(SNW_LIBS

@@ -25,11 +25,17 @@ public:
     size_t size() const;
     size_t capacity() const;
     bool empty() const;
+    bool full() const;
 
     iterator begin();
     iterator end();
     const_iterator begin() const;
     const_iterator end() const;
+
+    T& front();
+    const T& front() const;
+    T& back();
+    const T& back() const;
 
     T& operator[](size_t index);
     const T& operator[](size_t index) const;
