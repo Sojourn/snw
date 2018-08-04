@@ -26,7 +26,7 @@ public:
 private:
     struct page_node {
         intrusive_list_node node;
-		array<page*, (4096 - sizeof(intrusive_list_node) - sizeof(size_t)) / sizeof(page*)> pages;
+        array<page*, (4096 - sizeof(intrusive_list_node) - sizeof(size_t)) / sizeof(page*)> pages;
     };
     static_assert(sizeof(page_node) == 4096, "");
 
