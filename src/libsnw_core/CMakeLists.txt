@@ -7,6 +7,8 @@ set(SNW_HDRS
     core.h
     module.h
     subscription_list.h
+    future.h
+    future.hpp
 )
 
 set(SNW_LIBS
