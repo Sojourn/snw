@@ -17,6 +17,9 @@ namespace snw {
 
         template<typename T_>
         friend struct future_promise;
+
+        template<typename T_>
+        friend future<T_> make_ready_future(T_);
     public:
         future();
         future(future&& other);
@@ -35,6 +38,7 @@ namespace snw {
 
     private:
         future(promise<T>* promise);
+        future(T value);
 
         enum class state {
             broken,
@@ -78,6 +82,9 @@ namespace snw {
 
         future_promise(): future(&promise), promise(&future) {}
     };
+
+    template<typename T>
+    snw::future<T> make_ready_future(T value);
 
 }
 

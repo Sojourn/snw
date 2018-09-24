@@ -66,4 +66,11 @@ TEST_CASE("future") {
     SECTION("value lifetime") {
         // TODO
     }
+
+    SECTION("make_ready_future") {
+        auto f = snw::make_ready_future<int>(14);
+        CHECK(!f.is_broken());
+        CHECK(f.has_value());
+        CHECK(f.value() == 14);
+    }
 }

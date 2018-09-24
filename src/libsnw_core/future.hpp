@@ -15,6 +15,14 @@ snw::future<T>::future(promise<T>* promise)
 }
 
 template<typename T>
+snw::future<T>::future(T value)
+    : promise_(nullptr)
+    , state_(state::ready)
+{
+    value_.create(std::move(value));
+}
+
+template<typename T>
 snw::future<T>::future(future&& other)
     : promise_(other.promise_)
     , state_(other.state_)
@@ -152,4 +160,9 @@ void snw::promise<T>::set_value(T value) {
         future_->value_.create(std::move(value));
         future_->state_ = future<T>::state::ready;
     }
+}
+
+template<typename T>
+snw::future<T> snw::make_ready_future(T value) {
+    return snw::future<T>(value);
 }
