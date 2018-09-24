@@ -26,11 +26,15 @@ namespace snw {
         future& operator=(future&& rhs);
         future& operator=(const future&) = delete;
 
+        bool is_broken() const;
+        bool is_waiting() const;
+        // bool is_ready() const;
+        bool has_value() const;
+        T& value();
+        const T& value() const;
+
     private:
         future(promise<T>* promise);
-
-        void attach(promise<T>* promise);
-        void detach();
 
         enum class state {
             broken,
@@ -46,7 +50,7 @@ namespace snw {
     template<typename T>
     class promise {
         template<typename T_>
-        class future;
+        friend class future;
 
         template<typename T_>
         friend struct future_promise;
@@ -58,6 +62,8 @@ namespace snw {
 
         promise& operator=(promise&& rhs);
         promise& operator=(const promise&) = delete;
+
+        void set_value(T value);
 
     private:
         promise(future<T>* future);
