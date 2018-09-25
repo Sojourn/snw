@@ -77,8 +77,8 @@ namespace snw {
 
     template<typename T>
     struct future_promise {
-        future<T> future;
-        promise<T> promise;
+        snw::future<T> future;
+        snw::promise<T> promise;
 
         future_promise(): future(&promise), promise(&future) {}
     };
