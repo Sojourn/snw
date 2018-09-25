@@ -38,6 +38,20 @@ namespace snw {
         Result operator()(Args... args) const; // TODO?
 
         explicit operator bool() const;
+
+        void reset();
+
+    private:
+        struct vtable {
+            void(*move_construct)(void* self, void* other);
+            void(*destroy)(void* self);
+            Result(*call)(void* self, Args...);
+        };
+
+        const vtable* vtable_;
+        uint8_t storage_[64 - sizeof(vtable)];
     };
 
 }
+
+#include "function.hpp"

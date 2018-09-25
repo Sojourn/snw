@@ -14,6 +14,8 @@ set(SNW_HDRS
     intrusive_list.hpp
     dfa16_state_machine.h
     find_type.h
+    function.h
+    function.hpp
 )
 
 add_library(snw_util ${SNW_SRCS} ${SNW_HDRS})
