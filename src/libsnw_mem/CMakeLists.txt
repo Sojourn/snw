@@ -12,7 +12,7 @@ set(SNW_HDRS
 
 set(SNW_LIBS
     snw_util
-    snw_core
+    snw_event
 )
 
 add_library(snw_mem ${SNW_SRCS} ${SNW_HDRS})

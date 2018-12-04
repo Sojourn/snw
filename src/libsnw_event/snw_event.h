@@ -1,4 +1,4 @@
 #pragma once
 
-#include "core.h"
+#include "event_router.h"
 #include "future.h"

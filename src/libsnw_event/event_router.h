@@ -9,15 +9,15 @@
 namespace snw {
 
 template<template<typename> class... Modules>
-class core {
+class event_router {
     template<template<typename> class Module>
     static constexpr int find_module() {
-        return find_type<Module<core<Modules...>>, Modules<core<Modules...>>...>::value;
+        return find_type<Module<event_router<Modules...>>, Modules<event_router<Modules...>>...>::value;
     }
 
     template<typename Module>
     static constexpr int find_qualified_module() {
-        return find_type<Module, Modules<core<Modules...>>...>::value;
+        return find_type<Module, Modules<event_router<Modules...>>...>::value;
     }
 
 public:
@@ -26,7 +26,7 @@ public:
         enum {
             index = find_qualified_module<Module>()
         };
-        static_assert(index >= 0, "Add module to core");
+        static_assert(index >= 0, "Add module to event_router");
         assert(module);
         std::get<index>(modules_) = module;
     }
@@ -36,37 +36,37 @@ public:
         enum {
             index = find_qualified_module<Module>()
         };
-        static_assert(index >= 0, "Add module to core");
+        static_assert(index >= 0, "Add module to event_router");
         std::get<index>(modules_) = nullptr;
     }
 
     template<template<typename> class Module>
-    Module<core<Modules...>>& get() {
+    Module<event_router<Modules...>>& get() {
         enum {
             index = find_module<Module>()
         };
-        static_assert(index >= 0, "Add module to core");
+        static_assert(index >= 0, "Add module to event_router");
         return *std::get<index>(modules_);
     }
 
     template<template<typename> class Module>
-    const Module<core<Modules...>>& get() const {
+    const Module<event_router<Modules...>>& get() const {
         enum {
             index = find_module<Module>()
         };
-        static_assert(index >= 0, "Add module to core");
+        static_assert(index >= 0, "Add module to event_router");
         return *std::get<index>(modules_);
     }
 
-    // Forward an event to subscribed modules
+    // Send an event to subscribed modules
     template<typename Event>
-    void emit_event(const Event& event) {
+    void send(const Event& event) {
         dispatch_event<Modules...> dispatcher;
         dispatcher(modules_, event);
     }
 
 private:
-    std::tuple<Modules<core<Modules...>>*...> modules_;
+    std::tuple<Modules<event_router<Modules...>>*...> modules_;
 };
 
 }

@@ -14,7 +14,7 @@ template<>
 struct notify_event<true> {
     template<typename Module, typename Event>
     void operator()(Module& module, const Event& event) {
-        module.handle_event(event);
+        module.recv(event);
     }
 };
 
