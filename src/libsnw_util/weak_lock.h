@@ -49,12 +49,12 @@ namespace snw {
             return ((version_ & 1) == 0);
         }
 
-        bool quiescent() const {
+        bool is_quiescent() const {
             return is_locked() && (version_ == mutex_.version());
         }
 
         explicit operator bool() const {
-            return quiescent();
+            return is_quiescent();
         }
 
     private:
