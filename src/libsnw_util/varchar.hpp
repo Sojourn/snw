@@ -108,3 +108,16 @@ void snw::varchar<capacity_>::assign(const char* str, int len) {
         data_[i] = '\0';
     }
 }
+
+template<int capacity_>
+bool snw::compare(const varchar<capacity_>& lhs, const varchar<capacity_>& rhs) {
+    int rc = 0;
+    for (int i = 0; i < capacity_; ++i) {
+        rc = static_cast<int>(lhs[i]) - static_cast<int>(rhs[i]);
+        if (rc) {
+            break; // found a character that wasn't equal
+        }
+    }
+
+    return rc;
+}
