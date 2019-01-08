@@ -2,6 +2,8 @@
 
 #include "types.h"
 #include "platform.h"
+#include "weak_mutex.h"
+#include "varchar.h"
 
 namespace snw {
 
