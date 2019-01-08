@@ -2,6 +2,7 @@
 
 #include <ostream>
 #include <stdexcept>
+#include <cassert>
 
 namespace snw {
 

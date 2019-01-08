@@ -16,6 +16,7 @@ set(SNW_HDRS
     find_type.h
     function.h
     function.hpp
+    varchar.h
 )
 
 add_library(snw_util ${SNW_SRCS} ${SNW_HDRS})

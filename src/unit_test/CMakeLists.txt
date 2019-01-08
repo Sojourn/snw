@@ -6,6 +6,7 @@ set(SNW_SRCS
     t_util_dfa16_state_machine.cpp
     t_util_find_type.cpp
     t_util_function.cpp
+    t_util_varchar.cpp
     t_event_future.cpp
     t_mem_page_list.cpp
     t_mem_page_stack.cpp
