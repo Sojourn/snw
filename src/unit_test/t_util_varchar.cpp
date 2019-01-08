@@ -3,7 +3,7 @@
 
 TEST_CASE("varchar") {
     SECTION("construct and assign") {
-        snw::varchar<4> s;
+        snw::varchar<16> s;
         CHECK(s.empty());
         CHECK(s.size() == 0);
 
@@ -22,7 +22,7 @@ TEST_CASE("varchar") {
         CHECK(s[2] == 'c');
         CHECK(s[3] == 'd');
 
-        s = snw::varchar<4>("12");
+        s = snw::varchar<16>("12");
         CHECK(!s.empty());
         CHECK(s.size() == 2);
         CHECK(s[0] == '1');
@@ -30,31 +30,31 @@ TEST_CASE("varchar") {
     }
 
     SECTION("comparisons") {
-        CHECK(snw::varchar<2>("") == snw::varchar<2>(""));
-        CHECK(snw::varchar<2>("a") == snw::varchar<2>("a"));
-        CHECK(snw::varchar<2>("ab") == snw::varchar<2>("ab"));
+        CHECK(snw::varchar<16>("") == snw::varchar<16>(""));
+        CHECK(snw::varchar<16>("a") == snw::varchar<16>("a"));
+        CHECK(snw::varchar<16>("ab") == snw::varchar<16>("ab"));
 
-        CHECK(snw::varchar<2>("") >= snw::varchar<2>(""));
-        CHECK(snw::varchar<2>("a") >= snw::varchar<2>("a"));
-        CHECK(snw::varchar<2>("ab") >= snw::varchar<2>("ab"));
+        CHECK(snw::varchar<16>("") >= snw::varchar<16>(""));
+        CHECK(snw::varchar<16>("a") >= snw::varchar<16>("a"));
+        CHECK(snw::varchar<16>("ab") >= snw::varchar<16>("ab"));
 
-        CHECK(snw::varchar<2>("") <= snw::varchar<2>(""));
-        CHECK(snw::varchar<2>("a") <= snw::varchar<2>("a"));
-        CHECK(snw::varchar<2>("ab") <= snw::varchar<2>("ab"));
+        CHECK(snw::varchar<16>("") <= snw::varchar<16>(""));
+        CHECK(snw::varchar<16>("a") <= snw::varchar<16>("a"));
+        CHECK(snw::varchar<16>("ab") <= snw::varchar<16>("ab"));
 
-        CHECK(snw::varchar<2>("b") != snw::varchar<2>("a"));
-        CHECK(snw::varchar<2>("ab") != snw::varchar<2>("aa"));
+        CHECK(snw::varchar<16>("b") != snw::varchar<16>("a"));
+        CHECK(snw::varchar<16>("ab") != snw::varchar<16>("aa"));
 
-        CHECK(snw::varchar<2>("b") > snw::varchar<2>("a"));
-        CHECK(snw::varchar<2>("ab") > snw::varchar<2>("aa"));
+        CHECK(snw::varchar<16>("b") > snw::varchar<16>("a"));
+        CHECK(snw::varchar<16>("ab") > snw::varchar<16>("aa"));
 
-        CHECK(snw::varchar<2>("b") >= snw::varchar<2>("a"));
-        CHECK(snw::varchar<2>("ab") >= snw::varchar<2>("aa"));
+        CHECK(snw::varchar<16>("b") >= snw::varchar<16>("a"));
+        CHECK(snw::varchar<16>("ab") >= snw::varchar<16>("aa"));
 
-        CHECK(snw::varchar<2>("a") < snw::varchar<2>("b"));
-        CHECK(snw::varchar<2>("aa") < snw::varchar<2>("ab"));
+        CHECK(snw::varchar<16>("a") < snw::varchar<16>("b"));
+        CHECK(snw::varchar<16>("aa") < snw::varchar<16>("ab"));
 
-        CHECK(snw::varchar<2>("a") <= snw::varchar<2>("b"));
-        CHECK(snw::varchar<2>("aa") <= snw::varchar<2>("ab"));
+        CHECK(snw::varchar<16>("a") <= snw::varchar<16>("b"));
+        CHECK(snw::varchar<16>("aa") <= snw::varchar<16>("ab"));
     }
 }
