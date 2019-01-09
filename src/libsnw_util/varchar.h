@@ -3,6 +3,7 @@
 #include <ostream>
 #include <stdexcept>
 #include <cassert>
+#include "align.h"
 
 namespace snw {
 
@@ -70,13 +71,8 @@ public:
     }
 
 private:
-    char data_[capacity_];
+    alignas(16) char data_[align_up(capacity_, 16)];
 };
-
-using varchar8  = varchar<8>;
-using varchar16 = varchar<16>;
-using varchar32 = varchar<32>;
-using varchar64 = varchar<64>;
 
 }
 

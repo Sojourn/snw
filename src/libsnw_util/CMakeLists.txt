@@ -7,6 +7,7 @@ set(SNW_HDRS
     snw_util.h
     align.h
     platform.h
+    bits.h
     box.h
     box.hpp
     array.h

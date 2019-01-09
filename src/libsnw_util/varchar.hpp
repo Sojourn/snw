@@ -1,3 +1,8 @@
+#include <immintrin.h>
+#include "bits.h"
+
+#define VARCHAR_SIMD_ENABLED 1
+
 template<int capacity_>
 snw::varchar<capacity_>::varchar() : data_{} {
     clear();
@@ -25,6 +30,25 @@ bool snw::varchar<capacity_>::empty() const {
 
 template<int capacity_>
 int snw::varchar<capacity_>::size() const {
+#if VARCHAR_SIMD_ENABLED
+    __m128i null_vec = _mm_setzero_si128();
+
+    for (int i = 0; i < capacity_; i += 16) {
+        // load a chunk of the string and make a mask of null bytes in it
+        int pad_mask = _mm_movemask_epi8(
+            _mm_cmpeq_epi8(
+                _mm_load_si128((const __m128i*)(data_ + i)),
+                null_vec)
+        );
+
+        // return the index of the first null byte
+        if (pad_mask) {
+            return i + count_trailing_zeros(static_cast<uint32_t>(pad_mask));
+        }
+    }
+
+    return capacity_;
+#else
     int i = 0;
     for (; i < capacity_; ++i) {
         if (data_[i] == '\0') {
@@ -33,6 +57,7 @@ int snw::varchar<capacity_>::size() const {
     }
 
     return i;
+#endif
 }
 
 template<int capacity_>
