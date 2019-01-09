@@ -2,43 +2,44 @@
 
 #include <ostream>
 #include <stdexcept>
+#include <cstddef>
 #include <cassert>
 #include "align.h"
 
 namespace snw {
 
-template<int capacity_>
+template<size_t capacity_>
 class varchar;
 
-template<int capacity_>
+template<size_t capacity_>
 int compare(const varchar<capacity_>& lhs, const varchar<capacity_>& rhs);
 
-template<int capacity_>
+template<size_t capacity_>
 class varchar {
     static_assert(0 < capacity_, "capacity must be greater than zero");
 public:
     varchar();
     varchar(const char* str);
-    varchar(const char* str, int len);
+    varchar(const char* str, size_t len);
     varchar(const varchar&) = default;
 
     varchar& operator=(const varchar&) = default;
     varchar& operator=(const char* str);
 
     bool empty() const;
-    int size() const;
-    int capacity() const;
+    size_t size() const;
+    size_t capacity() const;
 
     const char* data() const;
     const char* begin() const;
     const char* end() const;
 
-    const char& at(int index) const;
-    const char& operator[](int index) const;
+    const char& at(size_t index) const;
+    const char& operator[](size_t index) const;
 
     void clear();
     void assign(const char* str);
-    void assign(const char* str, int len);
+    void assign(const char* str, size_t len);
 
 public:
     friend bool operator==(const varchar& lhs, const varchar& rhs) {
