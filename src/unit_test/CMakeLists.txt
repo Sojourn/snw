@@ -1,6 +1,7 @@
 set(SNW_SRCS
     main.cpp
     t_util_box.cpp
+    t_util_bits.cpp
     t_util_array.cpp
     t_util_intrusive_list.cpp
     t_util_dfa16_state_machine.cpp
