@@ -10,7 +10,7 @@ template<int capacity_>
 class varchar;
 
 template<int capacity_>
-bool compare(const varchar<capacity_>& lhs, const varchar<capacity_>& rhs);
+int compare(const varchar<capacity_>& lhs, const varchar<capacity_>& rhs);
 
 template<int capacity_>
 class varchar {
