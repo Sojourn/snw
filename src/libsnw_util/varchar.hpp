@@ -96,9 +96,17 @@ const char& snw::varchar<capacity_>::operator[](int index) const {
 
 template<int capacity_>
 void snw::varchar<capacity_>::clear() {
+#if VARCHAR_SIMD_ENABLED
+    __m128i null_vec = _mm_setzero_si128();
+
+    for (int i = 0; i < capacity_; i += 16) {
+        _mm_store_si128((__m128i*)(data_ + i), null_vec);
+    }
+#else
     for (int i = 0; i < capacity_; ++i) {
         data_[i] = '\0';
     }
+#endif
 }
 
 template<int capacity_>
