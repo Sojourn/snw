@@ -40,4 +40,14 @@ TEST_CASE("alignment utilities") {
             }
         }
     }
+
+    SECTION("is_power_of_2") {
+        for (uint64_t i = 0; i < 64; ++i) {
+            CHECK(snw::is_power_of_2(1ull << 1));
+        }
+
+        for (uint64_t i = 2; i < 64; ++i) {
+            CHECK(!(snw::is_power_of_2(1ull | (1ull << 1))));
+        }
+    }
 }
