@@ -224,6 +224,7 @@ private:
     friend class handle;
 
     void read(size_t addr, void* buf, size_t len) const {
+        check_bounds(addr, len);
         memcpy(buf, data() + addr, len);
     }
 
@@ -233,9 +234,14 @@ private:
     }
 
 private:
-    void check_bounds(size_t addr, size_t len) {
-        if ((addr + len) > size_) {
-            throw std::runtime_error("invalid address range");
+    void check_bounds(size_t addr, size_t len) const {
+        size_t outer_beg = 0;
+        size_t outer_end = capacity_;
+        size_t inner_beg = addr;
+        size_t inner_end = addr + len;
+
+        if ((inner_beg < outer_beg) || (outer_end < inner_end)) {
+            throw std::runtime_error("invalid bounds");
         }
     }
 
@@ -248,7 +254,7 @@ private:
 
 template<typename T>
 void handle::read_field(size_t offset, T* value) const {
-    heap_->read(addr_ + offset, value, sizeof(value));
+    heap_->read(addr_ + offset, value, sizeof(*value));
 }
 
 template<typename T>
