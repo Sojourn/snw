@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <bitset>
 #include <cstring>
 #include <cstdint>
 #include <cstddef>
@@ -14,9 +15,9 @@
 // rename to atom-type?
 enum class object_type : uint16_t {
     nil,
-    cell,
     integer,
     string,
+    cell,
 };
 
 struct object_header {
@@ -80,6 +81,10 @@ public:
 
     handle next() {
         return handle(heap(), addr_ + size());
+    }
+
+    explicit operator bool() const {
+        return addr_ < (1 << 16);
     }
 
 protected:
@@ -262,22 +267,47 @@ void handle::write_field(size_t offset, const T& value) {
     heap_->write(addr_ + offset, &value, sizeof(value));
 }
 
-// TODO
-// template<object_type type>
-// object make_object(task_heap& heap);
+template<object_type type, typename... Args>
+object<type> make_object(task_heap& heap, Args&&... args);
+
+template<>
+object<object_type::nil> make_object(task_heap& heap) {
+    return object<object_type::nil>(heap);
+}
+
+template<>
+object<object_type::integer> make_object(task_heap& heap) {
+    return object<object_type::integer>(
+        heap.allocate(object_type::integer, sizeof(integer_object)));
+}
+
+template<>
+object<object_type::cell> make_object(task_heap& heap) {
+    return object<object_type::cell>(
+        heap.allocate(object_type::cell, sizeof(cell_object)));
+}
+
+template<object_type type>
+object<type> object_cast(handle hnd) {
+    assert(hnd);
+    assert(hnd.type() == type);
+    return object<type>(hnd);
+}
 
 int main(int argc, char** argv) {
     task_heap heap;
 
-    object<object_type::cell> cell(heap.allocate(object_type::cell, sizeof(cell_object)));
+    auto car = make_object<object_type::integer>(heap);
+    car.set_value(13);
 
-    auto lhs = object<object_type::integer>(heap.allocate(object_type::integer, sizeof(integer_object)));
-    lhs.set_value(13);
-    cell.set_car(lhs);
+    auto cdr = make_object<object_type::nil>(heap);
 
-    // points to nil by default
-    // auto rhs = object<object_type::nil>(heap);
-    // cell.set_cdr(rhs);
+    auto cell = make_object<object_type::cell>(heap);
+    cell.set_car(car);
+    cell.set_cdr(cdr);
+
+    auto cell_hnd = static_cast<handle>(cell);
+    auto cell_obj = object_cast<object_type::cell>(cell_hnd);
 
 #ifdef SNW_OS_WINDOWS
     std::system("pause");
