@@ -3,6 +3,7 @@
 #include <vector>
 #include <array>
 #include <bitset>
+#include <memory>
 #include <cstring>
 #include <cstdint>
 #include <cstddef>
@@ -12,302 +13,287 @@
 
 #include "array.h"
 
-// rename to atom-type?
-enum class object_type : uint16_t {
-    nil,
-    integer,
-    string,
-    cell,
-};
+namespace snw {
+    // Think about using a shadow stack. Currently references aren't stable across allocations or
+    // suspends which isn't super useful.
 
-struct object_header {
-    object_type type;
-    uint16_t    size;
-};
+    enum class object_type : uint16_t {
+        nil,
+        integer,
+        symbol,
+        cell,
+    };
 
-struct nil_object {
-    object_header header;
-};
+    class object_handle {
+    public:
+        object_handle() = default;
 
-struct cell_object {
-    object_header header;
-    uint16_t      car;
-    uint16_t      cdr;
-};
-
-struct integer_object {
-    object_header header;
-    int64_t       value;
-};
-
-struct string_object {
-    object_header header;
-    char          buffer[1];
-};
-
-class task_heap;
-
-class handle {
-public:
-    handle(task_heap& heap, size_t addr)
-        : heap_(&heap)
-        , addr_(addr)
-    {
-    }
-
-    task_heap& heap() {
-        return *heap_;
-    }
-
-    const task_heap& heap() const {
-        return *heap_;
-    }
-
-    size_t address() const {
-        return addr_;
-    }
-
-    object_type type() const {
-        object_type type;
-        read_field(offsetof(object_header, type), &type);
-        return type;
-    }
-
-    size_t size() const {
-        uint16_t size;
-        read_field(offsetof(object_header, size), &size);
-        return size;
-    }
-
-    handle next() {
-        return handle(heap(), addr_ + size());
-    }
-
-    explicit operator bool() const {
-        return addr_ < (1 << 16);
-    }
-
-protected:
-    template<typename T>
-    void read_field(size_t offset, T* value) const;
-
-    template<typename T>
-    void write_field(size_t offset, const T& value);
-
-private:
-    task_heap* heap_;
-    size_t     addr_;
-};
-
-template<object_type type>
-class object;
-
-template<>
-class object<object_type::nil> : public handle {
-public:
-    object(task_heap& heap)
-        : handle(heap, 0)
-    {
-        assert(type() == object_type::nil);
-    }
-
-    object(handle hnd)
-        : handle(hnd)
-    {
-        assert(type() == object_type::nil);
-    }
-};
-
-template<>
-class object<object_type::integer> : public handle {
-public:
-    object(handle hnd)
-        : handle(hnd)
-    {
-        assert(type() == object_type::integer);
-    }
-
-    object(task_heap& heap, size_t addr)
-        : handle(heap, addr)
-    {
-        assert(type() == object_type::integer);
-    }
-
-    int64_t value() const {
-        int64_t value;
-        read_field(offsetof(integer_object, value), &value);
-        return value;
-    }
-
-    void set_value(int64_t value) {
-        write_field(offsetof(integer_object, value), value);
-    }
-};
-
-template<>
-class object<object_type::cell> : public handle {
-public:
-    object(handle hnd)
-        : handle(hnd)
-    {
-        assert(type() == object_type::cell);
-    }
-
-    object(task_heap& heap, size_t addr)
-        : handle(heap, addr)
-    {
-        assert(type() == object_type::cell);
-    }
-
-    handle car() {
-        uint16_t addr;
-        read_field(offsetof(cell_object, car), &addr);
-        return handle(heap(), addr);
-    }
-
-    void set_car(handle hnd) {
-        assert(&heap() == &hnd.heap());
-        uint16_t addr = static_cast<uint16_t>(hnd.address());
-        write_field(offsetof(cell_object, car), addr);
-    }
-
-    handle cdr() {
-        uint16_t addr;
-        read_field(offsetof(cell_object, cdr), &addr);
-        return handle(heap(), addr);
-    }
-
-    void set_cdr(handle hnd) {
-        assert(&heap() == &hnd.heap());
-        uint16_t addr = static_cast<uint16_t>(hnd.address());
-        write_field(offsetof(cell_object, cdr), addr);
-    }
-};
-
-class task_heap {
-public:
-    task_heap() {
-        allocate(object_type::nil, sizeof(nil_object));
-    }
-
-    handle allocate(object_type type, size_t size) {
-        size_t aligned_size = snw::align_up(size, alignment_);
-        if ((capacity_ - size_) < aligned_size) {
-            throw std::runtime_error("Out of memory");
+        object_type type() const {
+            return static_cast<object_type>(type_);
         }
 
-        size_t addr = size_;
-        size_ += aligned_size;
-
-        object_header header;
-        header.type = type;
-        header.size = aligned_size;
-
-        memset(data() + addr, 0, aligned_size);
-        memcpy(data() + addr, &header, sizeof(header));
-
-        return handle(*this, addr);
-    }
-
-    handle begin() {
-        return handle(*this, 0);
-    }
-
-    handle end() {
-        return handle(*this, size_);
-    }
-
-    uint8_t* data() {
-        return data_.data();
-    }
-
-    const uint8_t* data() const {
-        return data_.data();
-    }
-
-private:
-    friend class handle;
-
-    void read(size_t addr, void* buf, size_t len) const {
-        check_bounds(addr, len);
-        memcpy(buf, data() + addr, len);
-    }
-
-    void write(size_t addr, const void* buf, size_t len) {
-        check_bounds(addr, len);
-        memcpy(data() + addr, buf, len);
-    }
-
-private:
-    void check_bounds(size_t addr, size_t len) const {
-        size_t outer_beg = 0;
-        size_t outer_end = capacity_;
-        size_t inner_beg = addr;
-        size_t inner_end = addr + len;
-
-        if ((inner_beg < outer_beg) || (outer_end < inner_end)) {
-            throw std::runtime_error("invalid bounds");
+        void set_type(object_type type) {
+            type_ = static_cast<uint16_t>(type);
         }
+
+        uint16_t addr() const {
+            return (addr_ << addr_shift_);
+        }
+
+        void set_addr(uint16_t addr) {
+            addr_ = (addr >> addr_shift_);
+        }
+
+    private:
+        static constexpr uint32_t addr_shift_ = 3;
+
+        uint16_t type_ : 3;
+        uint16_t addr_ : 13;
+        // uint16_t nonce_;
+    };
+
+    class object_heap {
+    public:
+        object_heap()
+            : size_(0)
+            , data_(new uint8_t[capacity_])
+        {
+            ::memset(data_.get(), 0, capacity_);
+
+            setup();
+        }
+
+        void reset() {
+            // zero previously allocated heap memory
+            ::memset(data_.get(), 0, size_);
+            size_ = 0;
+
+            setup();
+        }
+
+        // allocate heap memory
+        object_handle allocate(object_type type, size_t alloc_size) {
+            assert(alloc_size > 0); // no zero-sized allocations
+
+            alloc_size = align_up(alloc_size, alignment_);
+            if (capacity_ < (size_ + alloc_size)) {
+                throw std::runtime_error("object_heap allocation failed");
+            }
+
+            uint16_t addr = static_cast<uint16_t>(size_);
+            size_ += alloc_size;
+
+            object_handle handle;
+            handle.set_type(type);
+            handle.set_addr(addr);
+            return handle;
+        }
+
+        // access heap memory
+        template<typename T>
+        T& access(object_handle handle) {
+            assert(handle.addr() < size_);
+            return *reinterpret_cast<T*>(&data_[handle.addr()]);
+        }
+
+        // access heap memory
+        template<typename T>
+        const T& access(object_handle handle) const {
+            assert(handle.addr() < size_);
+            return *reinterpret_cast<const T*>(&data_[handle.addr()]);
+        }
+
+    private:
+        // initialize an empty heap
+        void setup() {
+            assert(size_ == 0);
+
+            allocate(object_type::nil, 1);
+        }
+
+    private:
+        static constexpr size_t    capacity_ = (1 << 16);
+        static constexpr size_t    alignment_ = 8;
+
+        size_t                     size_;
+        std::unique_ptr<uint8_t[]> data_;
+    };
+
+    template<object_type type>
+    class object;
+
+    template<>
+    class object<object_type::nil> {
+    public:
+        object(object_heap& heap, object_handle handle)
+            : heap_(&heap)
+            , handle_(handle)
+        {
+            assert(handle.type() == object_type::nil);
+        }
+
+        object(object_heap& heap)
+            : heap_(&heap)
+        {
+            // collusion between the heap and nil objects
+            handle_.set_type(object_type::nil);
+            handle_.set_addr(0);
+        }
+
+    private:
+        object_heap*  heap_;
+        object_handle handle_;
+    };
+
+    template<>
+    class object<object_type::integer> {
+    public:
+        object(object_heap& heap, object_handle handle)
+            : heap_(&heap)
+            , handle_(handle)
+        {
+            assert(handle.type() == object_type::integer);
+        }
+
+        object(object_heap& heap, int64_t value)
+            : heap_(&heap)
+            , handle_(heap.allocate(object_type::integer, sizeof(int64_t)))
+        {
+            set_value(value);
+        }
+
+        int64_t value() const {
+            return heap_->access<int64_t>(handle_);
+        }
+
+        void set_value(int64_t value) {
+            heap_->access<int64_t>(handle_) = value;
+        }
+
+    private:
+        object_heap*  heap_;
+        object_handle handle_;
+    };
+
+    template<>
+    class object<object_type::symbol> {
+        // this is cute but we should store the len (or make this a varchar type)
+    public:
+        object(object_heap& heap, const char* str)
+            : heap_(&heap)
+        {
+            size_t len = strlen(str);
+            handle_ = heap_->allocate(object_type::symbol, len + 1);
+            memcpy(&heap_->access<char>(handle_), str, len + 1);
+        }        
+
+        object(object_heap& heap, object_handle handle)
+            : heap_(&heap)
+            , handle_(handle)
+        {
+            assert(handle.type() == object_type::symbol);
+        }
+
+        const char* c_str() const {
+            return &heap_->access<char>(handle_);
+        }
+
+        size_t size() const {
+            return strlen(&heap_->access<char>(handle_));
+        }
+
+    private:
+        object_heap*  heap_;
+        object_handle handle_;
+    };
+
+    template<>
+    class object<object_type::cell> {
+        struct cell {
+            object_handle car;
+            object_handle cdr;
+        };
+    public:
+        object(object_heap& heap)
+            : heap_(&heap)
+            , handle_(heap.allocate(object_type::cell, sizeof(cell)))
+        {
+        }
+
+        object(object_heap& heap, object_handle car, object_handle cdr)
+            : heap_(&heap)
+            , handle_(heap.allocate(object_type::cell, sizeof(cell)))
+        {
+            set_car(car);
+            set_cdr(cdr);
+        }
+
+        // FIXME: explicit?
+        object(object_heap& heap, object_handle handle)
+            : heap_(&heap)
+            , handle_(handle)
+        {
+            assert(handle.type() == object_type::cell);
+        }
+
+        object_handle car() const {
+            return heap_->access<cell>(handle_).car;
+        }
+
+        void set_car(object_handle car) {
+            heap_->access<cell>(handle_).car = car;
+        }
+
+        object_handle cdr() const {
+            return heap_->access<cell>(handle_).cdr;
+        }
+
+        void set_cdr(object_handle cdr) {
+            heap_->access<cell>(handle_).cdr = cdr;
+        }
+
+    private:
+        object_heap*  heap_;
+        object_handle handle_;
+    };
+
+    // utility functions for dealing with objects
+
+    template<object_type type>
+    object<type> object_cast(object_heap& heap, object_handle handle) {
+        if (handle.type() != type) {
+            throw std::runtime_error("invalid object_cast");
+        }
+
+        return object<type>(heap, handle);
     }
 
-private:
-    static constexpr size_t        capacity_ = 1 << 16;
-    static constexpr size_t        alignment_ = 8;
-    size_t                         size_ = 0;
-    std::array<uint8_t, capacity_> data_;
-};
+    template<object_type type, typename... Args>
+    object<type> make_object(object_heap& heap, Args&&... args) {
+        return object<type>(heap, std::forward<Args>(args)...);
+    }
 
-template<typename T>
-void handle::read_field(size_t offset, T* value) const {
-    heap_->read(addr_ + offset, value, sizeof(*value));
-}
+    template<typename... Args>
+    object<object_type::symbol> make_symbol(object_heap& heap, Args&&... args) {
+        return make_object<object_type::symbol>(heap, std::forward<Args>(args)...);
+    }
 
-template<typename T>
-void handle::write_field(size_t offset, const T& value) {
-    heap_->write(addr_ + offset, &value, sizeof(value));
-}
+    // FIXME: I like this better but it doesn't work...
+    // template<typename... Args>
+    // using make_symbol = make_object<object_type::symbol, Args...>;
 
-template<object_type type, typename... Args>
-object<type> make_object(task_heap& heap, Args&&... args);
-
-template<>
-object<object_type::nil> make_object(task_heap& heap) {
-    return object<object_type::nil>(heap);
-}
-
-template<>
-object<object_type::integer> make_object(task_heap& heap) {
-    return object<object_type::integer>(
-        heap.allocate(object_type::integer, sizeof(integer_object)));
-}
-
-template<>
-object<object_type::cell> make_object(task_heap& heap) {
-    return object<object_type::cell>(
-        heap.allocate(object_type::cell, sizeof(cell_object)));
-}
-
-template<object_type type>
-object<type> object_cast(handle hnd) {
-    assert(hnd);
-    assert(hnd.type() == type);
-    return object<type>(hnd);
+    // using nil_object = object<object_type::nil>;
+    // using integer_object = object<object_type::integer>;
+    // using symbol_object = object<object_type::symbol>;
+    // using cell_object = object<object_type::cell>;
 }
 
 int main(int argc, char** argv) {
-    task_heap heap;
+    snw::object_heap heap;
 
-    auto car = make_object<object_type::integer>(heap);
-    car.set_value(13);
-
-    auto cdr = make_object<object_type::nil>(heap);
-
-    auto cell = make_object<object_type::cell>(heap);
-    cell.set_car(car);
-    cell.set_cdr(cdr);
-
-    auto cell_hnd = static_cast<handle>(cell);
-    auto cell_obj = object_cast<object_type::cell>(cell_hnd);
+    // auto sym = snw::make_object<snw::object_type::symbol>(heap, "Hello, World!");
+    auto sym = snw::make_symbol(heap, "Hello, World!");
+    std::cout << sym.c_str() << std::endl;
 
 #ifdef SNW_OS_WINDOWS
     std::system("pause");
