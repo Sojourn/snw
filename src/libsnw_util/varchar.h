@@ -72,7 +72,7 @@ public:
     }
 
 private:
-    alignas(16) char data_[align_up(capacity_, 16)];
+    char data_[align_up(capacity_, 16)];
 };
 
 }

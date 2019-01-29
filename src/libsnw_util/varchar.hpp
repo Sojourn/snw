@@ -37,7 +37,7 @@ size_t snw::varchar<capacity_>::size() const {
         // load a chunk of the string and make a mask of null bytes in it
         int pad_mask = _mm_movemask_epi8(
             _mm_cmpeq_epi8(
-                _mm_load_si128((const __m128i*)(data_ + i)),
+                _mm_loadu_si128((const __m128i*)(data_ + i)),
                 null_vec)
         );
 
@@ -100,7 +100,7 @@ void snw::varchar<capacity_>::clear() {
     __m128i null_vec = _mm_setzero_si128();
 
     for (size_t i = 0; i < capacity_; i += 16) {
-        _mm_store_si128((__m128i*)(data_ + i), null_vec);
+        _mm_storeu_si128((__m128i*)(data_ + i), null_vec);
     }
 #else
     for (size_t i = 0; i < capacity_; ++i) {
