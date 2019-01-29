@@ -21,6 +21,7 @@ namespace snw {
         nil,
         integer,
         symbol,
+        string,
         cell,
     };
 
@@ -203,6 +204,51 @@ namespace snw {
     };
 
     template<>
+    class object<object_type::string> {
+        using len_t = uint16_t;
+
+        struct string {
+            len_t len;
+            char  buf[1];
+        };
+
+    public:
+        object(object_heap& heap, const char* str)
+            : heap_(&heap)
+        {
+            size_t len = strlen(str);
+            if ((std::numeric_limits<len_t>::max() - 1) < len) {
+                throw std::runtime_error("string is too long to be stored in heap");
+            }
+
+            handle_ = heap_->allocate(object_type::string, sizeof(len_t) + len + 1);
+
+            auto& s = heap_->access<string>(handle_);
+            s.len = static_cast<len_t>(len);
+            memcpy(s.buf, str, len + 1);
+        }
+
+        object(object_heap& heap, object_handle handle)
+            : heap_(&heap)
+            , handle_(handle)
+        {
+            assert(handle.type() == object_type::string);
+        }
+
+        const char* c_str() const {
+            return heap_->access<string>(handle_).buf;
+        }
+
+        size_t size() const {
+            return heap_->access<string>(handle_).len;
+        }
+
+    private:
+        object_heap*  heap_;
+        object_handle handle_;
+    };
+
+    template<>
     class object<object_type::cell> {
         struct cell {
             object_handle car;
@@ -269,8 +315,13 @@ namespace snw {
     }
 
     template<typename... Args>
-    object<object_type::symbol> make_symbol(object_heap& heap, Args&&... args) {
+    object<object_type::symbol> make_symbol_object(object_heap& heap, Args&&... args) {
         return make_object<object_type::symbol>(heap, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    object<object_type::string> make_string_object(object_heap& heap, Args&&... args) {
+        return make_object<object_type::string>(heap, std::forward<Args>(args)...);
     }
 
     // FIXME: I like this better but it doesn't work...
@@ -286,9 +337,11 @@ namespace snw {
 int main(int argc, char** argv) {
     snw::object_heap heap;
 
-    // auto sym = snw::make_object<snw::object_type::symbol>(heap, "Hello, World!");
-    auto sym = snw::make_symbol(heap, "Hello, World!");
+    auto sym = snw::make_symbol_object(heap, "Hello, World!");
     std::cout << sym.name() << std::endl;
+
+    auto str = snw::make_string_object(heap, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    std::cout << str.c_str() << std::endl;
 
 #ifdef SNW_OS_WINDOWS
     std::system("pause");
