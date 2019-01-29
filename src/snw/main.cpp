@@ -177,14 +177,13 @@ namespace snw {
 
     template<>
     class object<object_type::symbol> {
-        // this is cute but we should store the len (or make this a varchar type)
+        using name_t = varchar<16>;
     public:
         object(object_heap& heap, const char* str)
             : heap_(&heap)
+            , handle_(heap.allocate(object_type::symbol, sizeof(name_t)))
         {
-            size_t len = strlen(str);
-            handle_ = heap_->allocate(object_type::symbol, len + 1);
-            memcpy(&heap_->access<char>(handle_), str, len + 1);
+            new(&heap_->access<name_t>(handle_)) name_t(str);
         }        
 
         object(object_heap& heap, object_handle handle)
@@ -194,12 +193,8 @@ namespace snw {
             assert(handle.type() == object_type::symbol);
         }
 
-        const char* c_str() const {
-            return &heap_->access<char>(handle_);
-        }
-
-        size_t size() const {
-            return strlen(&heap_->access<char>(handle_));
+        const name_t& name() const {
+            return heap_->access<name_t>(handle_);
         }
 
     private:
@@ -293,7 +288,7 @@ int main(int argc, char** argv) {
 
     // auto sym = snw::make_object<snw::object_type::symbol>(heap, "Hello, World!");
     auto sym = snw::make_symbol(heap, "Hello, World!");
-    std::cout << sym.c_str() << std::endl;
+    std::cout << sym.name() << std::endl;
 
 #ifdef SNW_OS_WINDOWS
     std::system("pause");
