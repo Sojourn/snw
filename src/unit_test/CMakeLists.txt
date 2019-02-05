@@ -12,6 +12,7 @@ set(SNW_SRCS
     t_event_future.cpp
     t_mem_page_list.cpp
     t_mem_page_stack.cpp
+    t_lang_text_reader.cpp
 )
 
 set(SNW_HDRS
@@ -22,6 +23,7 @@ set(SNW_LIBS
     snw_util
     snw_event
     snw_mem
+    snw_lang
 )
 
 add_executable(unit_test ${SNW_SRCS} ${SNW_HDRS})

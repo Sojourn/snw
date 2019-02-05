@@ -10,8 +10,11 @@
 
 #include "snw_util.h"
 #include "snw_event.h"
+#include "snw_lang.h"
 
 #include "array.h"
+
+#include "text_reader.h"
 
 namespace snw {
     // Think about using a shadow stack. Currently references aren't stable across allocations or
@@ -27,7 +30,10 @@ namespace snw {
 
     class object_handle {
     public:
-        object_handle() = default;
+        object_handle() {
+            set_type(object_type::nil);
+            set_addr(0);
+        }
 
         object_type type() const {
             return static_cast<object_type>(type_);
@@ -43,6 +49,10 @@ namespace snw {
 
         void set_addr(uint16_t addr) {
             addr_ = (addr >> addr_shift_);
+        }
+
+        explicit operator bool() const {
+            return (type() != object_type::nil) && (addr() != 0);
         }
 
     private:
@@ -251,8 +261,13 @@ namespace snw {
     template<>
     class object<object_type::cell> {
         struct cell {
+            // we've got enough extra storage to do interesting things here:
+            //   - cache symbol lookups?
+            //   - environment/closure?
             object_handle car;
+            // object_handle car_tag;
             object_handle cdr;
+            // object_handle cdr_tag;
         };
     public:
         object(object_heap& heap)
@@ -323,25 +338,22 @@ namespace snw {
     object<object_type::string> make_string_object(object_heap& heap, Args&&... args) {
         return make_object<object_type::string>(heap, std::forward<Args>(args)...);
     }
-
-    // FIXME: I like this better but it doesn't work...
-    // template<typename... Args>
-    // using make_symbol = make_object<object_type::symbol, Args...>;
-
-    // using nil_object = object<object_type::nil>;
-    // using integer_object = object<object_type::integer>;
-    // using symbol_object = object<object_type::symbol>;
-    // using cell_object = object<object_type::cell>;
 }
 
+namespace snw {
+    class virtual_machine {
+    public:
+        virtual_machine(int argc, const char** argv) {
+            (void)argc;
+            (void)argv;
+        }
+    };
+
+}
+
+const char* script = "(print (+ 1 2))";
+
 int main(int argc, char** argv) {
-    snw::object_heap heap;
-
-    auto sym = snw::make_symbol_object(heap, "Hello, World!");
-    std::cout << sym.name() << std::endl;
-
-    auto str = snw::make_string_object(heap, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-    std::cout << str.c_str() << std::endl;
 
 #ifdef SNW_OS_WINDOWS
     std::system("pause");

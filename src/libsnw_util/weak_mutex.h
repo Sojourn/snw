@@ -40,7 +40,7 @@ namespace snw {
     class weak_lock {
     public:
         weak_lock(weak_mutex& mutex)
-            : mutex_(mutex)
+            : mutex_(&mutex)
             , version_(mutex.version())
         {
         }
@@ -50,7 +50,7 @@ namespace snw {
         }
 
         bool is_quiescent() const {
-            return is_locked() && (version_ == mutex_.version());
+            return is_locked() && (version_ == mutex_->version());
         }
 
         explicit operator bool() const {
@@ -63,7 +63,7 @@ namespace snw {
         weak_lock& operator=(weak_lock&&) = delete;
         weak_lock& operator=(const weak_lock&) = delete;
 
-        weak_mutex& mutex_;
+        weak_mutex* mutex_;
         int64_t     version_;
     };
 
