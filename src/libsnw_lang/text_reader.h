@@ -9,7 +9,8 @@ namespace snw {
 
 template<size_t max_history>
 class text_reader {
-    static constexpr size_t max_history_ = max_history + 1;
+    static_assert(max_history > 0, "max_history must be greater than zero");
+    static_assert((max_history & (max_history - 1)) == 0, "max_history must be a power of 2");
 public:
     text_reader(const char* str)
         : str_(str)
@@ -25,10 +26,10 @@ public:
             ++off_;
 
             // this history entry might have replaced a previous one
-            history_ = std::min(history_ + 1, max_history);
+            history_ = std::min(history_ + 1, max_history - 1);
         }
 
-        auto& hent = get_history_entry(0);
+        history_entry& hent = get_history_entry(0);
 
         hent = get_history_entry(1);
         hent.update_column(c);
@@ -89,11 +90,11 @@ private:
     };
 
     history_entry& get_history_entry(size_t age) {
-        return history_entries_[history_ - age];
+        return history_entries_[(history_ - age) & (max_history - 1)];
     }
 
     const history_entry& get_history_entry(size_t age) const {
-        return history_entries_[history_ - age];
+        return history_entries_[(history_ - age) & (max_history - 1)];
     }
 
 private:

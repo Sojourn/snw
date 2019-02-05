@@ -3,7 +3,7 @@
 
 TEST_CASE("text_reader") {
     SECTION("getc") {
-        snw::text_reader<0> reader("abcd edf\n");
+        snw::text_reader<1> reader("abcd edf\n");
 
         CHECK(reader.getc() == 'a');
         CHECK(reader.getc() == 'b');
@@ -16,7 +16,7 @@ TEST_CASE("text_reader") {
         CHECK(reader.getc() == '\n');
     }
     SECTION("ungetc-1") {
-        snw::text_reader<1> reader("abcd edf\n");
+        snw::text_reader<2> reader("abcd edf\n");
 
         CHECK(reader.getc() == 'a');
         CHECK(reader.getc() == 'b');
@@ -35,7 +35,7 @@ TEST_CASE("text_reader") {
         CHECK(reader.getc() == '\n');
     }
     SECTION("ungetc-2") {
-        snw::text_reader<2> reader("abcd edf\n");
+        snw::text_reader<4> reader("abcd edf\n");
 
         CHECK(reader.getc() == 'a');
         CHECK(reader.getc() == 'b');
@@ -66,9 +66,38 @@ TEST_CASE("text_reader") {
         }
     }
     SECTION("column counts") {
-        // TODO
+        snw::text_reader<1> reader("12\n\t34\r56");
+
+        CHECK(reader.getc() == '1');
+        CHECK(reader.getc() == '2');
+        CHECK(reader.getc() == '\n');
+        CHECK(reader.getc() == '\t');
+        CHECK(reader.getc() == '3');
+        CHECK(reader.getc() == '4');
+        CHECK(reader.getc() == '\r');
+        CHECK(reader.getc() == '5');
+        CHECK(reader.getc() == '6');
     }
     SECTION("row counts") {
-        // TODO
+        snw::text_reader<1> reader("12\n\t34\r56");
+
+        CHECK(reader.getc() == '1');
+        CHECK(reader.row() == 0);
+        CHECK(reader.getc() == '2');
+        CHECK(reader.row() == 0);
+        CHECK(reader.getc() == '\n');
+        CHECK(reader.row() == 1);
+        CHECK(reader.getc() == '\t');
+        CHECK(reader.row() == 1);
+        CHECK(reader.getc() == '3');
+        CHECK(reader.row() == 1);
+        CHECK(reader.getc() == '4');
+        CHECK(reader.row() == 1);
+        CHECK(reader.getc() == '\r');
+        CHECK(reader.row() == 1);
+        CHECK(reader.getc() == '5');
+        CHECK(reader.row() == 1);
+        CHECK(reader.getc() == '6');
+        CHECK(reader.row() == 1);
     }
 }
