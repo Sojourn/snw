@@ -6,15 +6,22 @@
 #include <cstddef>
 #include <cstdint>
 #include <cassert>
+#include "text_reader.h"
 
 namespace snw {
 
-    // struct token {
-    //     size_t off;
-    //     size_t len;
-    //     size_t row;
-    //     size_t col;
-    // };
+    inline bool is_space(char c) {
+        switch (c) {
+        case ' ':
+        case '\t':
+        case '\r':
+        case '\n':
+            return true;
+
+        default:
+            return false;
+        }
+    }
 
     inline bool is_digit(char c) {
         return ('0' <= c) && (c <= '9');
@@ -82,106 +89,181 @@ namespace snw {
         }
     }
 
+    struct lexer_error {
+        const char* msg;
+        size_t      off;
+        size_t      column;
+        size_t      row;
+    };
+
+    // struct lexer_observer {
+    //     void open_file();
+    //     void open_list();
+    //     void integer(int64_t);
+    //     void string(const char* first, const char* last);
+    //     void symbol(const char* first, const char* last);
+    //     void close_list();
+    //     void close_file();
+    //     void error(const lexer_error& err);
+    // };
+
     class lexer {
     public:
-        lexer(const char* src) {
-            reset(src);
+        lexer(const char* src)
+            : reader_(src)
+            , state_(state::initial)
+        {
         }
 
         template<typename Observer>
-        void next(Observer&& observer) {
-            observer.open_file();
+        bool next(Observer&& observer) {
+            switch (state_) {
+            case state::initial:
+                state_ = state::file_open;
+                observer.open_file();
+                return true;
 
-            while (const char& c = getc()) {
-                switch (c) {
-                // whitespace
-                case ' ':
-                case '\t':
-                case '\r':
-                case '\n':
-                    continue;
+            case state::file_open:
+                while (const char& c = reader_.getc()) {
+                    switch (c) {
+                    // whitespace
+                    case ' ':
+                    case '\t':
+                    case '\r':
+                    case '\n':
+                        continue;
 
-                // line comment
-                case ';':
-                    while (const char& c = getc()) {
-                        if (c == '\n') {
-                            break;
+                    // line comment
+                    case ';':
+                        while (const char& c = reader_.getc()) {
+                            if (c == '\n') {
+                                break;
+                            }
+                        }
+                        continue;
+
+                    case '(':
+                        observer.open_list();
+                        return true;
+
+                    case ')':
+                        observer.close_list();
+                        return true;
+
+                    case '"': {
+                        const char* first = (&c) + 1;
+                        const char* last = nullptr;
+                        bool escaped = false;
+
+                        while (const char& c = reader_.getc()) {
+                            if (!is_valid_string_char(c)) {
+                                state_ = state::error;
+                                observer.error(make_lexer_error("invalid string char"));
+                                return false;
+                            }
+
+                            // TODO: unescape and copy
+                            if (escaped) {
+                                if (is_escapable_char(c)) {
+                                    escaped =  false;
+                                }
+                                else {
+                                    state_ = state::error;
+                                    observer.error(make_lexer_error("invalid escape"));
+                                    return false;
+                                }
+                            }
+                            else if (c == '"') {
+                                last = &c;
+                                observer.string(first, last);
+                                return true;
+                            }
+                        }
+
+                        state_ = state::error;
+                        observer.error(make_lexer_error("untermianted string"));
+                        return false;
+                    }
+
+                    default:
+                        if (is_digit(c)) {
+                            int64_t value = (c - '0');
+                            while (const char& c = reader_.getc()) {
+                                if (is_digit(c)) {
+                                    // TODO: overflow check
+                                    value *= 10;
+                                    value += (c - '0');
+                                }
+                                else {
+                                    break;
+                                }
+                            }
+
+                            observer.integer(value);
+                            return true;
+                        }
+                        else if (is_valid_symbol_char(c)) {
+                            // FIXME: this is tricky, make it not tricky
+                            const char* first = &c;
+                            const char* last = first + 1;
+
+                            while (const char& c = reader_.getc()) {
+                                last = &c;
+                                if (!is_valid_symbol_char(c)) {
+                                    reader_.ungetc();
+                                    break;
+                                }
+                            }
+
+                            observer.symbol(first, last);
+                            return true;
+                        }
+                        else {
+                            state_ = state::error;
+                            observer.error(make_lexer_error("invalid token character"));
+                            return false;
                         }
                     }
-                    continue;
-
-                case '(':
-                    observer.open_list();
-                    break;
-
-                case ')':
-                    observer.close_list();
-                    break;
-
-                case '"': {
-                    const char* first = nullptr;
-                    const char* last = nullptr;
-
-                    while (const char& c = getc()) {
-                    }
-
-                    break;
                 }
 
-                default:
-                    if (is_digit(c)) {
-                        // integer
-                    }
-                    else if (is_valid_symbol_char(c)) {
-                    }
-                    break;
-                }
-            }
+                state_ = state::file_closed;
+                observer.close_file();
+                return true;
 
-            observer.close_file();
-        }
-
-        void rewind() {
-            assert(memcmp(&curr_state_, &prev_state_, sizeof(curr_state_)) != 0);
-            curr_state_ = prev_state_;
-        }
-
-        void reset(const char* src) {
-            reset(src, strlen(src));
-        }
-
-        void reset(const char* src, size_t len) {
-            assert(src);
-
-            src_ = src;
-            curr_state_ = state{};
-            prev_state_ = state{};
-
-            std::string tmpstr;
-        }
-
-    private:
-        const char& getc() {
-            const char& c = src_[curr_state_.off];
-            if (c != '\0') {
-                ++curr_state_.off;
-            }
-        }
-
-        void ungetc() {
-            if (curr_state_.off > 0) {
-                --curr_state_.off;
+            case state::file_closed:
+            case state::error:
+            default:
+                return false;
             }
         }
 
     private:
-        struct state {
-            size_t off = 0;
+        lexer_error make_lexer_error(const char* msg) const {
+            lexer_error err;
+            err.msg = msg;
+            err.off = reader_.offset();
+            err.column = reader_.column();
+            err.row = reader_.row();
+            return err;
+        }
+
+    private:
+        enum class state {
+            initial,
+            file_open,
+            file_closed,
+            error,
         };
 
-        const char* src_;
-        state       curr_state_;
-        state       prev_state_;
+        text_reader<2> reader_;
+        state          state_;
     };
 
+    template<typename Parser>
+    void parse(const char* source, Parser& parser) {
+        lexer l(source);
+        while (l.next(parser)) {
+            // pass
+        }
+    }
 }
