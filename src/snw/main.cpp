@@ -368,6 +368,9 @@ struct dummy_parser {
     void symbol(const char* first, const char* last) {
         std::cout << "symbol:" << std::string(first, last-first) << std::endl;
     }
+    void comment(const char* first, const char* last) {
+        std::cout << "comment:" << std::string(first, last-first) << std::endl;
+    }
     void close_list() {
         std::cout << "list_file" << std::endl;
     }
