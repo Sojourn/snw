@@ -96,14 +96,16 @@ namespace snw {
         size_t      row;
     };
 
-    // struct lexer_observer {
+    // TODO: give each function a token parameter
+    // struct my_parser {
     //     void open_file();
+    //     void close_file();
     //     void open_list();
+    //     void close_list();
     //     void integer(int64_t);
     //     void string(const char* first, const char* last);
     //     void symbol(const char* first, const char* last);
-    //     void close_list();
-    //     void close_file();
+    //     void comment(const char* first, const char* last);
     //     void error(const lexer_error& err);
     // };
 
@@ -228,6 +230,7 @@ namespace snw {
                             }
                         }
 
+                        reader_.ungetc();
                         parser.integer(value);
                         return true;
                     }
