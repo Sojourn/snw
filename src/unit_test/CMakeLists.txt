@@ -13,6 +13,7 @@ set(SNW_SRCS
     t_mem_page_list.cpp
     t_mem_page_stack.cpp
     t_lang_text_reader.cpp
+    t_lang_lexer.cpp
 )
 
 set(SNW_HDRS
