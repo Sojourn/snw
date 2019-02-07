@@ -115,21 +115,18 @@ namespace snw {
         {
         }
 
-        template<typename Observer>
-        bool next(Observer&& observer) {
+        template<typename Parser>
+        bool next(Parser& parser) {
             switch (state_) {
             case state::initial:
-                return process_initial_state(std::forward<Observer>(observer));
+                return process_initial_state(parser);
 
-            case state::file_open:
-                return process_file_open_state(std::forward<Observer>(observer));
+            case state::running:
+                return process_running_state(parser);
 
-            case state::file_closed:
-                return process_file_closed_state(std::forward<Observer>(observer));
-
-            case state::error:
             default:
-                return process_error_state(std::forward<Observer>(observer));
+            case state::finished:
+                return process_finished_state(parser);
             }
         }
 
@@ -143,15 +140,15 @@ namespace snw {
             return err;
         }
 
-        template<typename Observer>
-        bool process_initial_state(Observer&& observer) {
-            state_ = state::file_open;
-            observer.open_file();
+        template<typename Parser>
+        bool process_initial_state(Parser& parser) {
+            state_ = state::running;
+            parser.open_file();
             return true;
         }
 
-        template<typename Observer>
-        bool process_file_open_state(Observer&& observer) {
+        template<typename Parser>
+        bool process_running_state(Parser& parser) {
             while (const char& c = reader_.getc()) {
                 switch (c) {
                 // whitespace
@@ -170,16 +167,16 @@ namespace snw {
                         last = &reader_.getc();
                     } while (*last && (*last != '\n'));
 
-                    observer.comment(first, last);
+                    parser.comment(first, last);
                     return true;
                 }
 
                 case '(':
-                    observer.open_list();
+                    parser.open_list();
                     return true;
 
                 case ')':
-                    observer.close_list();
+                    parser.close_list();
                     return true;
 
                 case '"': {
@@ -189,8 +186,8 @@ namespace snw {
 
                     while (const char& c = reader_.getc()) {
                         if (!is_valid_string_char(c)) {
-                            state_ = state::error;
-                            observer.error(make_lexer_error("invalid string char"));
+                            state_ = state::finished;
+                            parser.error(make_lexer_error("invalid string char"));
                             return false;
                         }
 
@@ -200,20 +197,20 @@ namespace snw {
                                 escaped =  false;
                             }
                             else {
-                                state_ = state::error;
-                                observer.error(make_lexer_error("invalid escape"));
+                                state_ = state::finished;
+                                parser.error(make_lexer_error("invalid escape"));
                                 return false;
                             }
                         }
                         else if (c == '"') {
                             last = &c;
-                            observer.string(first, last);
+                            parser.string(first, last);
                             return true;
                         }
                     }
 
-                    state_ = state::error;
-                    observer.error(make_lexer_error("untermianted string"));
+                    state_ = state::finished;
+                    parser.error(make_lexer_error("untermianted string"));
                     return false;
                 }
 
@@ -231,7 +228,7 @@ namespace snw {
                             }
                         }
 
-                        observer.integer(value);
+                        parser.integer(value);
                         return true;
                     }
                     else if (is_valid_symbol_char(c)) {
@@ -243,38 +240,32 @@ namespace snw {
                         } while (*last && is_valid_symbol_char(*last));
 
                         reader_.ungetc();
-                        observer.symbol(first, last);
+                        parser.symbol(first, last);
                         return true;
                     }
                     else {
-                        state_ = state::error;
-                        observer.error(make_lexer_error("invalid token character"));
+                        state_ = state::finished;
+                        parser.error(make_lexer_error("invalid token character"));
                         return false;
                     }
                 }
             }
 
-            state_ = state::file_closed;
-            observer.close_file();
+            state_ = state::finished;
+            parser.close_file();
             return true;
         }
 
-        template<typename Observer>
-        bool process_file_closed_state(Observer&& observer) {
-            return false;
-        }
-
-        template<typename Observer>
-        bool process_error_state(Observer&& observer) {
+        template<typename Parser>
+        bool process_finished_state(Parser& parser) {
             return false;
         }
 
     private:
         enum class state {
             initial,
-            file_open,
-            file_closed,
-            error,
+            running,
+            finished,
         };
 
         text_reader<2> reader_;
