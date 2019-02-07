@@ -74,6 +74,7 @@ namespace snw {
         case '&':
         case '<':
         case '>':
+        case '?':
             return true;
 
         default:
