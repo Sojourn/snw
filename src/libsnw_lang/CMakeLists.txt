@@ -7,6 +7,7 @@ set(SNW_HDRS
     text_reader.h
     lexer.h
     object.h
+    object_handle.h
     object_heap.h
 )
 
