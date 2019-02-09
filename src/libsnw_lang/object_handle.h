@@ -1,5 +1,7 @@
 #pragma once
 
+#include "intrusive_list.h"
+
 namespace snw {
 
 enum class object_type : uint16_t {
@@ -10,6 +12,27 @@ enum class object_type : uint16_t {
     string,
     cell,
 };
+
+// struct compressed_object_handle {
+//     uint16_t type_ : 3;
+//     uint16_t addr_ : 13;
+    
+//     object_type type() const {
+//         return static_cast<object_type>(type_);
+//     }
+
+//     void set_type(object_type type) {
+//         type_ = static_cast<uint16_t>(type);
+//     }
+
+//     uint16_t addr() const {
+//         return (addr_ << addr_shift_);
+//     }
+
+//     void set_addr(uint16_t addr) {
+//         addr_ = (addr >> addr_shift_);
+//     }
+// };
 
 class object_handle {
 public:

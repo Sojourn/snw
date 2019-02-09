@@ -91,6 +91,18 @@ typename snw::array<T, capacity_>::const_iterator snw::array<T, capacity_>::end(
 }
 
 template<typename T, size_t capacity_>
+T* snw::array<T, capacity_>::data()
+{
+    return begin();
+}
+
+template<typename T, size_t capacity_>
+const T* snw::array<T, capacity_>::data() const
+{
+    return begin();
+}
+
+template<typename T, size_t capacity_>
 T& snw::array<T, capacity_>::front()
 {
     assert(!empty());

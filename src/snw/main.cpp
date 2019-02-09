@@ -12,11 +12,6 @@
 #include "snw_event.h"
 #include "snw_lang.h"
 
-#include "array.h"
-
-#include "text_reader.h"
-#include "lexer.h"
-
 struct dummy_parser {
     void open_file() {
         std::cout << "open_file" << std::endl;
@@ -37,7 +32,7 @@ struct dummy_parser {
         std::cout << "comment:" << std::string(first, last-first) << std::endl;
     }
     void close_list() {
-        std::cout << "list_file" << std::endl;
+        std::cout << "close_list" << std::endl;
     }
     void close_file() {
         std::cout << "close_file" << std::endl;
@@ -48,10 +43,6 @@ struct dummy_parser {
 };
 
 int main(int argc, char** argv) {
-    dummy_parser parser;
-    snw::parse("(print (+ 1 2))", parser);
-    snw::parse("$", parser);
-    snw::parse("", parser);
 
 #ifdef SNW_OS_WINDOWS
     std::system("pause");

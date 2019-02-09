@@ -7,16 +7,11 @@
 
 namespace snw {
 
-struct object_base {
-    // intrusive_list_node ref_node;
-};
-// using object_list = intrusive_list<object_base, &object_base::ref_node>;
-
 template<object_type type>
 class object;
 
 template<>
-class object<object_type::nil> : public object_base {
+class object<object_type::nil> {
 public:
     object(object_heap& heap, object_handle handle)
         : heap_(&heap)
@@ -72,12 +67,12 @@ template<>
 class object<object_type::symbol> : public object_base {
     using name_t = varchar<16>;
 public:
-    object(object_heap& heap, const char* str)
+    object(object_heap& heap, const char* first, const char* last)
         : heap_(&heap)
         , handle_(heap.allocate(object_type::symbol, sizeof(name_t)))
     {
-        new(&heap_->access<name_t>(handle_)) name_t(str);
-    }        
+        new(&heap_->access<name_t>(handle_)) name_t(first, last-first);
+    }
 
     object(object_heap& heap, object_handle handle)
         : heap_(&heap)
@@ -105,10 +100,10 @@ class object<object_type::string> : public object_base {
     };
 
 public:
-    object(object_heap& heap, const char* str)
+    object(object_heap& heap, const char* first, const char* last)
         : heap_(&heap)
     {
-        size_t len = strlen(str);
+        size_t len = last - first;
         if ((std::numeric_limits<len_t>::max() - 1) < len) {
             throw std::runtime_error("string is too long to be stored in heap");
         }
@@ -117,7 +112,7 @@ public:
 
         auto& s = heap_->access<string>(handle_);
         s.len = static_cast<len_t>(len);
-        memcpy(s.buf, str, len + 1);
+        memcpy(s.buf, first, len + 1);
     }
 
     object(object_heap& heap, object_handle handle)
@@ -195,7 +190,11 @@ private:
     object_handle handle_;
 };
 
-// utility functions for dealing with objects
+using nil_object = object<object_type::nil>;
+using integer_object = object<object_type::integer>;
+using symbol_object = object<object_type::symbol>;
+using string_object = object<object_type::string>;
+using cell = object<object_type::cell>;
 
 template<object_type type>
 object<type> object_cast(object_heap& heap, object_handle handle) {
@@ -209,16 +208,6 @@ object<type> object_cast(object_heap& heap, object_handle handle) {
 template<object_type type, typename... Args>
 object<type> make_object(object_heap& heap, Args&&... args) {
     return object<type>(heap, std::forward<Args>(args)...);
-}
-
-template<typename... Args>
-object<object_type::symbol> make_symbol_object(object_heap& heap, Args&&... args) {
-    return make_object<object_type::symbol>(heap, std::forward<Args>(args)...);
-}
-
-template<typename... Args>
-object<object_type::string> make_string_object(object_heap& heap, Args&&... args) {
-    return make_object<object_type::string>(heap, std::forward<Args>(args)...);
 }
 
 }

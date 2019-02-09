@@ -32,6 +32,9 @@ public:
     const_iterator begin() const;
     const_iterator end() const;
 
+    T* data();
+    const T* data() const;
+
     T& front();
     const T& front() const;
     T& back();

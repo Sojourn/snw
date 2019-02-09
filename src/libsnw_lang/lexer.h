@@ -1,13 +1,12 @@
 #pragma once
 
 #include <stdexcept>
-#include <string>
-#include <vector>
 #include <cstring>
 #include <cstddef>
 #include <cstdint>
 #include <cassert>
 #include "text_reader.h"
+#include "array.h"
 
 namespace snw {
 
@@ -276,11 +275,12 @@ namespace snw {
             finished,
         };
 
-        text_reader<2>    reader_;
-        state             state_;
-        std::vector<char> buffer_;
+        text_reader<2>         reader_;
+        state                  state_;
+        array<char, (1 << 16)> buffer_;
     };
 
+    // TODO: rename to lex
     template<typename Parser>
     void parse(const char* source, Parser& parser) {
         lexer l(source);

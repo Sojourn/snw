@@ -6,6 +6,7 @@ set(SNW_HDRS
     snw_lang.h
     text_reader.h
     lexer.h
+    parser.h
     object.h
     object_handle.h
     object_heap.h
