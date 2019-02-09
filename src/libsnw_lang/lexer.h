@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <vector>
 #include <cstring>
 #include <cstddef>
 #include <cstdint>
@@ -32,7 +33,7 @@ namespace snw {
         return true;
     }
 
-    inline bool is_escapable_char(char c) {
+    inline bool is_valid_escaped_char(char c) {
         switch (c) {
         case '"':
         case '\\':
@@ -183,9 +184,8 @@ namespace snw {
                     return true;
 
                 case '"': {
-                    const char* first = (&c) + 1;
-                    const char* last = nullptr;
                     bool escaped = false;
+                    buffer_.clear();
 
                     while (const char& c = reader_.getc()) {
                         if (!is_valid_string_char(c)) {
@@ -194,10 +194,10 @@ namespace snw {
                             return false;
                         }
 
-                        // TODO: unescape and copy
                         if (escaped) {
-                            if (is_escapable_char(c)) {
+                            if (is_valid_escaped_char(c)) {
                                 escaped =  false;
+                                buffer_.push_back(unescape(c));
                             }
                             else {
                                 state_ = state::finished;
@@ -206,9 +206,13 @@ namespace snw {
                             }
                         }
                         else if (c == '"') {
-                            last = &c;
+                            const char* first = buffer_.data();
+                            const char* last = first + buffer_.size();
                             parser.string(first, last);
                             return true;
+                        }
+                        else {
+                            buffer_.push_back(c);
                         }
                     }
 
@@ -272,8 +276,9 @@ namespace snw {
             finished,
         };
 
-        text_reader<2> reader_;
-        state          state_;
+        text_reader<2>    reader_;
+        state             state_;
+        std::vector<char> buffer_;
     };
 
     template<typename Parser>
