@@ -12,6 +12,18 @@ namespace snw {
 
 using symbol = varchar<16>;
 
+struct string {
+    uint16_t len;
+    // uint16_t cap;
+    char     buf[0];
+};
+static_assert(sizeof(string) == sizeof(uint16_t), "Compiler extension not available");
+
+struct cell {
+    raw_object_handle car;
+    raw_object_handle cdl;
+};
+
 template<object_type type>
 class object;
 
@@ -164,13 +176,6 @@ class object<object_type::string> : public object_handle {
     template<object_type type, typename... Args>
     friend object<type> make_object(object_heap&, Args&&...);
 
-    struct string {
-        uint16_t len;
-        // uint16_t cap;
-        char     buf[0];
-    };
-    static_assert(sizeof(string) == sizeof(uint16_t), "Compiler extension not available");
-
 public:
     std::string str() const {
         return std::string(c_str(), size());
@@ -229,11 +234,6 @@ class object<object_type::cell> : public object_handle {
 
     template<object_type type, typename... Args>
     friend object<type> make_object(object_heap&, Args&&...);
-
-    struct cell {
-        raw_object_handle car;
-        raw_object_handle cdl;
-    };
 
 public:
     object_handle car() /* const */ {

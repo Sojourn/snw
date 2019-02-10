@@ -3,7 +3,7 @@
 
 void snw::object_handle::attach() {
     detach();
-    heap_->register_root(*this);
+    heap_->attach(*this);
 }
 
 void snw::object_handle::detach() {

@@ -56,19 +56,21 @@ public:
         return *reinterpret_cast<const T*>(&data_[handle.addr()]);
     }
 
+    void garbage_collect();
+
 public:
     using ref_list = intrusive_list<object_handle, &object_handle::ref_>;
 
-    void register_root(object_handle& handle) {
-        roots_.push_back(handle);
+    void attach(object_handle& handle) {
+        refs_.push_back(handle);
     }
 
-    const ref_list& roots() const {
-        return roots_;
+    const ref_list& refs() const {
+        return refs_;
     }
 
     ref_list& roots() {
-        return roots_;
+        return refs_;
     }
 
 private:
@@ -83,7 +85,7 @@ private:
     static constexpr size_t    capacity_ = (1 << 16);
     static constexpr size_t    alignment_ = 8;
 
-    ref_list                   roots_;
+    ref_list                   refs_;
     size_t                     size_;
     std::unique_ptr<uint8_t[]> data_;
 };
