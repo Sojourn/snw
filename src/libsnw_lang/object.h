@@ -1,12 +1,156 @@
 #pragma once
 
+#include <cstdint>
+#include <cstddef>
+#include <cstring>
 #include <cassert>
 #include "object_handle.h"
 #include "object_heap.h"
-#include "intrusive_list.h"
 
 namespace snw {
 
+template<object_type type>
+class object;
+
+template<>
+class object<object_type::nil> : public object_handle {
+    template<object_type type>
+    friend object<type> object_cast(object_handle);
+
+    template<object_type type>
+    friend object<type> unsafe_object_cast(object_handle);
+
+    template<object_type type, typename... Args>
+    friend object<type> make_object(object_heap&, Args&&...);
+
+    static constexpr uint16_t addr_ = 0;
+
+private:
+    static object create(object_heap& heap) {
+        return object(object_handle(heap, object_type::nil, addr_));
+    }
+
+    object(object_handle handle)
+        : object_handle(std::move(handle))
+    {
+    }
+};
+
+template<>
+class object<object_type::boolean> : public object_handle {
+    template<object_type type>
+    friend object<type> object_cast(object_handle);
+
+    template<object_type type>
+    friend object<type> unsafe_object_cast(object_handle);
+
+    template<object_type type, typename... Args>
+    friend object<type> make_object(object_heap&, Args&&...);
+
+    static constexpr uint16_t false_addr_ = 8;
+    static constexpr uint16_t true_addr_  = 16;
+
+public:
+    bool value() const {
+        return addr() == true_addr_;
+    }
+
+private:
+    static object create(object_heap& heap, bool value) {
+        return object(object_handle(heap, object_type::boolean, value ? true_addr_ : false_addr_));
+    }
+
+    object(object_handle handle)
+        : object_handle(std::move(handle))
+    {
+    }
+};
+
+template<>
+class object<object_type::integer> : public object_handle {
+    template<object_type type>
+    friend object<type> object_cast(object_handle);
+
+    template<object_type type>
+    friend object<type> unsafe_object_cast(object_handle);
+
+    template<object_type type, typename... Args>
+    friend object<type> make_object(object_heap&, Args&&...);
+
+public:
+    int64_t value() const {
+        return heap().access<int64_t>(*this);
+    }
+
+    void set_value(int64_t value) {
+        heap().access<int64_t>(*this) = value;
+    }
+
+private:
+    static object create(object_heap& heap, int64_t value) {
+        object result(heap.allocate(object_type::integer, sizeof(value)));
+        result.set_value(value);
+        return result;
+    }
+
+    object(object_handle handle)
+        : object_handle(std::move(handle))
+    {
+    }
+};
+
+template<>
+class object<object_type::symbol> : public object_handle {
+public:
+};
+
+template<>
+class object<object_type::string> : public object_handle {
+public:
+};
+
+template<>
+class object<object_type::cell> : public object_handle {
+    template<object_type type>
+    friend object<type> object_cast(object_handle);
+
+    template<object_type type>
+    friend object<type> unsafe_object_cast(object_handle);
+
+    template<object_type type, typename... Args>
+    friend object<type> make_object(object_heap&, Args&&...);
+
+    struct cell {
+        raw_object_handle car;
+        raw_object_handle cdl;
+    };
+
+public:
+
+private:
+};
+
+template<object_type type, typename... Args>
+object<type> make_object(object_heap& heap, Args&&... args) {
+    return object<type>::create(heap, std::forward<Args>(args)...);
+}
+
+template<object_type type>
+object<type> unsafe_object_cast(object_handle handle) {
+    assert(handle.type() == type);
+    return object<type>(std::move(handle));
+}
+
+template<object_type type>
+object<type> object_cast(object_handle handle) {
+    if (handle.type() != type) {
+        throw std::runtime_error("Invalid object cast");
+    }
+
+    return object<type>(std::move(handle));
+}
+
+#if 0
 template<object_type type>
 class object;
 
@@ -209,5 +353,6 @@ template<object_type type, typename... Args>
 object<type> make_object(object_heap& heap, Args&&... args) {
     return object<type>(heap, std::forward<Args>(args)...);
 }
+#endif
 
 }

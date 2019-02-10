@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdexcept>
+#include <memory>
 #include <cstddef>
 #include <cstring>
 #include <cassert>
@@ -12,12 +13,10 @@ namespace snw {
 class object_heap {
 public:
     object_heap()
-        : size_(0)
+        : size_(capacity_)
         , data_(new uint8_t[capacity_])
     {
-        ::memset(data_.get(), 0, capacity_);
-
-        setup();
+        reset();
     }
 
     void reset() {
@@ -40,24 +39,36 @@ public:
         uint16_t addr = static_cast<uint16_t>(size_);
         size_ += alloc_size;
 
-        object_handle handle;
-        handle.set_type(type);
-        handle.set_addr(addr);
-        return handle;
+        return object_handle(*this, type, addr);
     }
 
     // access heap memory
     template<typename T>
-    T& access(object_handle handle) {
+    T& access(object_handle& handle) {
         assert(handle.addr() < size_);
         return *reinterpret_cast<T*>(&data_[handle.addr()]);
     }
 
     // access heap memory
     template<typename T>
-    const T& access(object_handle handle) const {
+    const T& access(const object_handle& handle) const {
         assert(handle.addr() < size_);
         return *reinterpret_cast<const T*>(&data_[handle.addr()]);
+    }
+
+public:
+    using ref_list = intrusive_list<object_handle, &object_handle::ref_>;
+
+    void register_root(object_handle& handle) {
+        roots_.push_back(handle);
+    }
+
+    const ref_list& roots() const {
+        return roots_;
+    }
+
+    ref_list& roots() {
+        return roots_;
     }
 
 private:
@@ -66,12 +77,15 @@ private:
         assert(size_ == 0);
 
         allocate(object_type::nil, 1);
+        allocate(object_type::boolean, 1); // false
+        allocate(object_type::boolean, 1); // true
     }
 
 private:
     static constexpr size_t    capacity_ = (1 << 16);
     static constexpr size_t    alignment_ = 8;
 
+    ref_list                   roots_;
     size_t                     size_;
     std::unique_ptr<uint8_t[]> data_;
 };

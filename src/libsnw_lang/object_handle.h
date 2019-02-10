@@ -1,72 +1,126 @@
 #pragma once
 
+#include <cstring>
 #include "intrusive_list.h"
 
 namespace snw {
 
+class object_heap;
+
 enum class object_type : uint16_t {
     nil,
-    // boolean,
+    boolean,
     integer,
     symbol,
     string,
     cell,
 };
 
-// struct compressed_object_handle {
-//     uint16_t type_ : 3;
-//     uint16_t addr_ : 13;
-    
-//     object_type type() const {
-//         return static_cast<object_type>(type_);
-//     }
-
-//     void set_type(object_type type) {
-//         type_ = static_cast<uint16_t>(type);
-//     }
-
-//     uint16_t addr() const {
-//         return (addr_ << addr_shift_);
-//     }
-
-//     void set_addr(uint16_t addr) {
-//         addr_ = (addr >> addr_shift_);
-//     }
-// };
+struct raw_object_handle {
+    uint16_t type : 3;
+    uint16_t addr : 13;
+};
 
 class object_handle {
+    template<typename T, snw::intrusive_list_node T::*member_node>
+    friend class snw::intrusive_list;
+    friend class object_heap;
+
+    template<object_type>
+    friend class object;
+
 public:
-    object_handle() {
-        set_type(object_type::nil);
-        set_addr(0);
+    // FIXME: there's a bug in intrusive_list that causes a crash without this
+    object_handle(object_handle&& other)
+        : heap_(other.heap_)
+        , handle_(other.handle_)
+    {
+        other.heap_ = nullptr;
+        memset(&other.handle_, 0, sizeof(handle_));
+
+        attach();
+        other.detach(); 
     }
 
-    object_type type() const {
-        return static_cast<object_type>(type_);
+    object_handle(const object_handle&) = delete;
+
+    // FIXME: there's a bug in intrusive_list that causes a crash without this
+    object_handle& operator=(object_handle&& rhs) {
+        if (this != &rhs) {
+            detach();
+
+            heap_ = rhs.heap_;
+            handle_ = rhs.handle_;
+
+            rhs.heap_ = nullptr;
+            memset(&rhs.handle_, 0, sizeof(handle_));
+
+            attach();
+            rhs.detach();
+        }
+        
+        return *this;
     }
 
-    void set_type(object_type type) {
-        type_ = static_cast<uint16_t>(type);
+    object_handle& operator=(const object_handle&) = delete;
+
+    object_heap& heap() {
+        return *heap_;
+    }
+
+    const object_heap& heap() const {
+        return *heap_;
     }
 
     uint16_t addr() const {
-        return (addr_ << addr_shift_);
+        return static_cast<uint16_t>(handle_.addr) << 3;
+    }
+
+    object_type type() const {
+        return static_cast<object_type>(handle_.type);
+    }
+
+protected:
+    object_handle(object_heap& heap, raw_object_handle handle)
+        : heap_(&heap)
+        , handle_(handle)
+    {
+        attach();
+    }
+
+    object_handle(object_heap& heap, object_type type, uint16_t addr)
+        : heap_(&heap)
+    {
+        set(type, addr);
+        attach();
+    }
+
+    void set(object_type type, uint16_t addr) {
+        handle_.type = static_cast<uint16_t>(type);
+        handle_.addr = addr >> 3;
     }
 
     void set_addr(uint16_t addr) {
-        addr_ = (addr >> addr_shift_);
+        set(type(), addr);
     }
 
-    explicit operator bool() const {
-        return (type() != object_type::nil) && (addr() != 0);
+    void set_type(object_type type) {
+        set(type, addr());
     }
+
+    raw_object_handle handle() const {
+        return handle_;
+    }
+
+protected:
+    object_heap*             heap_;
+    raw_object_handle        handle_;
 
 private:
-    static constexpr uint32_t addr_shift_ = 3;
+    snw::intrusive_list_node ref_;
 
-    uint16_t type_ : 3;
-    uint16_t addr_ : 13;
-    // uint16_t nonce_;
+    void attach();
+    void detach();
 };
 
 }
