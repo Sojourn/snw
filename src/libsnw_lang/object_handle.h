@@ -108,7 +108,7 @@ protected:
         set(type, addr());
     }
 
-    raw_object_handle handle() const {
+    raw_object_handle raw_handle() const {
         return handle_;
     }
 

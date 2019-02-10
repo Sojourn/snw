@@ -28,6 +28,20 @@ int main(int argc, char** argv) {
     {
         auto i = make_object<object_type::integer>(heap, 13);
     }
+    {
+        auto s = make_object<object_type::symbol>(heap, "main");
+
+        std::cout << s.value() << std::endl;
+    }
+    {
+        auto s = make_object<object_type::string>(heap, "hello, world!");
+        std::cout << s.c_str() << std::endl;
+    }
+    {
+        auto c = make_object<object_type::cell>(heap);
+        c.set_car(make_object<object_type::integer>(heap, 3));
+        c.set_cdl(make_object<object_type::nil>(heap));
+    }
 
     for (auto& root: heap.roots()) {
         std::cout << &root << std::endl;
