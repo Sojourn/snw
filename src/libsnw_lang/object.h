@@ -47,17 +47,20 @@ class object<object_type::boolean> : public object_handle {
     template<object_type type, typename... Args>
     friend object<type> make_object(object_heap&, Args&&...);
 
-    static constexpr uint16_t false_addr_ = 8;
-    static constexpr uint16_t true_addr_  = 16;
-
 public:
     bool value() const {
-        return addr() == true_addr_;
+        return heap().access<bool>(*this);
+    }
+
+    void set_value(bool value) {
+        heap().access<bool>(*this) = value;
     }
 
 private:
     static object create(object_heap& heap, bool value) {
-        return object(object_handle(heap, object_type::boolean, value ? true_addr_ : false_addr_));
+        object result(heap.allocate(object_type::boolean, sizeof(value)));
+        result.set_value(value);
+        return result;
     }
 
     object(object_handle handle)

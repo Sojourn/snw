@@ -25,6 +25,9 @@ int main(int argc, char** argv) {
         auto t = make_object<object_type::boolean>(heap, true);
         auto f = make_object<object_type::boolean>(heap, false);
     }
+    {
+        auto i = make_object<object_type::integer>(heap, 13);
+    }
 
     for (auto& root: heap.roots()) {
         std::cout << &root << std::endl;

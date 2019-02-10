@@ -77,8 +77,6 @@ private:
         assert(size_ == 0);
 
         allocate(object_type::nil, 1);
-        allocate(object_type::boolean, 1); // false
-        allocate(object_type::boolean, 1); // true
     }
 
 private:
