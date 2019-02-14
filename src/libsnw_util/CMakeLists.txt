@@ -11,6 +11,7 @@ set(SNW_HDRS
     box.h
     box.hpp
     array.h
+    hash.h
     intrusive_list.h
     intrusive_list.hpp
     dfa16_state_machine.h
