@@ -6,3 +6,4 @@
 #include "align.h"
 #include "weak_mutex.h"
 #include "varchar.h"
+#include "hash.h"

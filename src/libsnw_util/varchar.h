@@ -17,6 +17,7 @@ int compare(const varchar<capacity_>& lhs, const varchar<capacity_>& rhs);
 template<size_t capacity_>
 class varchar {
     static_assert(0 < capacity_, "capacity must be greater than zero");
+    static_assert(is_aligned(capacity_, 16), "capacity must be a multiple of 16");
 public:
     varchar();
     varchar(const char* str);
