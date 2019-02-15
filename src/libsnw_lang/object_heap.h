@@ -56,8 +56,6 @@ public:
         return *reinterpret_cast<const T*>(&data_[handle.addr()]);
     }
 
-    void garbage_collect();
-
 public:
     using ref_list = intrusive_list<object_handle, &object_handle::ref_>;
 
