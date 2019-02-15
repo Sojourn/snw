@@ -101,6 +101,12 @@ inline std::ostream& operator<<(std::ostream& out, const object_ref& ref) {
         case object_type::integer:
             out << ref.value.integer;
             break;
+        case object_type::string:
+            out << "\"\"";
+            break;
+        case object_type::bytes:
+            out << "[]";
+            break;
         case object_type::nil:
         default:
             break;
@@ -225,22 +231,44 @@ public:
     }
 
     object_ref new_string(const char* first, const char* last) {
-        // size_t str_len = (last - first) + 1;
-        // size_t aligned_str_len = align_up(str_len, alignment_);
-        // size_t alloc_size = sizeof(string_object) + aligned_str_len;
-
         object_ref ref;
-        // ref.type = object_type::string;
-        // if (aligned_len > 0) {
-        //     check_free_space(aligned_len);
+        ref.type = object_type::string;
+        if (first != last) {
+            size_t str_len = last - first;
+            size_t alloc_size = align_up(sizeof(string_object) + str_len + 1, alignment_);
+            check_free_space(alloc_size);
 
-        //     ref.is_indirect = true;
-        //     ref.value.address = static_cast<uint16_t>(size_);
+            ref.is_indirect = true;
+            ref.value.address = static_cast<uint16_t>(size_);
 
-        //     auto& obj = access<string_object>(ref);
+            auto& obj = access<string_object>(ref);
+            obj.len = str_len;
+            memcpy(obj.str, first, str_len);
+            obj.str[str_len] = '\0';
 
-        //     size_ += aligned_len;
-        // }
+            size_ += alloc_size;
+        }
+
+        return ref;
+    }
+
+    object_ref new_bytes(const uint8_t* first, const uint8_t* last) {
+        object_ref ref;
+        ref.type = object_type::bytes;
+        if (first != last) {
+            size_t buf_len = last - first;
+            size_t alloc_size = align_up(sizeof(bytes_object) + buf_len, alignment_);
+            check_free_space(alloc_size);
+
+            ref.is_indirect = true;
+            ref.value.address = static_cast<uint16_t>(size_);
+
+            auto& obj = access<bytes_object>(ref);
+            obj.len = buf_len;
+            memcpy(obj.buf, first, buf_len);
+
+            size_ += alloc_size;
+        }
 
         return ref;
     }
@@ -551,6 +579,8 @@ public:
 #endif
 
 int main(int argc, char** argv) {
+    uint8_t buf[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+
     object_heap heap;
     {
         std::cout << heap.new_nil() << std::endl;
@@ -559,6 +589,10 @@ int main(int argc, char** argv) {
         std::cout << heap.new_symbol("Hello-World") << std::endl;
         std::cout << heap.new_integer(13) << std::endl;
         std::cout << heap.new_integer(1 << 20) << std::endl;
+        std::cout << heap.new_string("") << std::endl;
+        std::cout << heap.new_string("hello, world") << std::endl;
+        std::cout << heap.new_bytes(buf, buf) << std::endl;
+        std::cout << heap.new_bytes(buf, buf + sizeof(buf)) << std::endl;
     }
 
 #ifdef SNW_OS_WINDOWS
