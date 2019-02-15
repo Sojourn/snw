@@ -155,8 +155,8 @@ private:
 };
 
 struct cell_object {
-    uint32_t car;
-    uint32_t cdr;
+    object_ref car;
+    object_ref cdr;
 };
 
 struct string_object {
@@ -282,12 +282,77 @@ public:
         ref.value.address = static_cast<uint16_t>(size_);
 
         cell_object cell;
-        cell.car = encode_object_ref(car);
-        cell.cdr = encode_object_ref(cdr);
+        cell.car = car;
+        cell.cdr = cdr;
         access<cell_object>(ref) = cell;
 
         size_ += sizeof(cell_object);
         return ref;
+    }
+
+public:
+    bool deref_boolean(object_ref ref) {
+        assert(ref.type == object_type::boolean);
+        if (ref.is_indirect) {
+            throw std::runtime_error("invalid object reference");
+        }
+        else {
+            return ref.value.boolean;
+        }
+    }
+
+    int64_t deref_integer(object_ref ref) {
+        assert(ref.type == object_type::integer);
+        if (ref.is_indirect) {
+            return access<int64_t>(ref);
+        }
+        else {
+            return ref.value.integer;
+        }
+    }
+
+    const symbol& deref_symbol(object_ref ref) {
+        assert(ref.type == object_type::symbol);
+        if (ref.is_indirect) {
+            return access<symbol>(ref);
+        }
+        else {
+            throw std::runtime_error("invalid object reference");
+        }
+    }
+
+    const string_object& deref_string(object_ref ref) {
+        static const string_object empty_string = { 0 };
+
+        assert(ref.type == object_type::string);
+        if (ref.is_indirect) {
+            return access<string_object>(ref);
+        }
+        else {
+            return empty_string;
+        }
+    }
+
+    const bytes_object& deref_bytes(object_ref ref) {
+        static const bytes_object empty_bytes = { 0 };
+
+        assert(ref.type == object_type::bytes);
+        if (ref.is_indirect) {
+            return access<bytes_object>(ref);
+        }
+        else {
+            return empty_bytes;
+        }
+    }
+
+    const cell_object& deref_cell(object_ref ref) {
+        assert(ref.type == object_type::cell);
+        if (ref.is_indirect) {
+            return access<cell_object>(ref);
+        }
+        else {
+            throw std::runtime_error("invalid object reference");
+        }
     }
 
 public:
@@ -583,16 +648,29 @@ int main(int argc, char** argv) {
 
     object_heap heap;
     {
-        std::cout << heap.new_nil() << std::endl;
-        std::cout << heap.new_boolean(true) << std::endl;
-        std::cout << heap.new_boolean(false) << std::endl;
-        std::cout << heap.new_symbol("Hello-World") << std::endl;
-        std::cout << heap.new_integer(13) << std::endl;
-        std::cout << heap.new_integer(1 << 20) << std::endl;
-        std::cout << heap.new_string("") << std::endl;
-        std::cout << heap.new_string("hello, world") << std::endl;
-        std::cout << heap.new_bytes(buf, buf) << std::endl;
-        std::cout << heap.new_bytes(buf, buf + sizeof(buf)) << std::endl;
+        auto n = heap.new_nil();
+        auto b0 = heap.new_boolean(false);
+        auto b1 = heap.new_boolean(true);
+        auto sym = heap.new_symbol("main");
+        auto str0 = heap.new_string("");
+        auto str1 = heap.new_string("Hello, World!");
+        auto buf0 = heap.new_bytes(nullptr, nullptr);
+        auto buf1 = heap.new_bytes(buf, buf + sizeof(buf));
+        auto cell0 = heap.new_cell(n, n);
+        auto cell1 = heap.new_cell(sym, cell0);
+        auto cell2 = heap.new_cell(str1, cell1);
+
+        // std::cout << heap.deref_nil(n) << std::endl;
+        std::cout << heap.deref_boolean(b0) << std::endl;
+        std::cout << heap.deref_boolean(b1) << std::endl;
+        std::cout << heap.deref_symbol(sym) << std::endl;
+        // std::cout << heap.deref_string(str0) << std::endl;
+        // std::cout << heap.deref_string(str1) << std::endl;
+        // std::cout << heap.deref_bytes(buf0) << std::endl;
+        // std::cout << heap.deref_bytes(buf1) << std::endl;
+        // std::cout << heap.deref_cell(cell0) << std::endl;
+        // std::cout << heap.deref_cell(cell1) << std::endl;
+        // std::cout << heap.deref_cell(cell2) << std::endl;
     }
 
 #ifdef SNW_OS_WINDOWS
