@@ -1,17 +1,16 @@
 set(SNW_SRCS
     lexer.cpp
-    object_handle.cpp
-    object_heap.cpp
 )
 
 set(SNW_HDRS
     snw_lang.h
+    object.h
+    object_heap.h
+    object_stack.h
+    object_transaction.h
     text_reader.h
     lexer.h
     parser.h
-    object.h
-    object_handle.h
-    object_heap.h
 )
 
 set(SNW_LIBS

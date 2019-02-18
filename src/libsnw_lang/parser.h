@@ -2,6 +2,7 @@
 
 #include "object.h"
 #include "object_heap.h"
+#include "object_stack.h"
 #include "lexer.h"
 #include "array.h"
 
@@ -12,14 +13,14 @@ class parser {
 public:
     parser(object_heap* heap)
         : heap_(heap)
-        , result_(make_nil_object(heap))
+        , result_(heap->new_nil())
     {
     }
 
-    object_handle parse(const char* str) {
+    object_ref parse(const char* str) {
         try {
             snw::parse(str, *this);
-            object_handle result = result_;
+            object_ref result = result_;
             result_ = make_nil_object(*heap_);
             return result;
         }
@@ -92,13 +93,13 @@ private:
             return tail_;
         }
 
-        void push_back(object_handle handle) {
+        void push_back(object_ref ref) {
             if (size_ == 0) {
-                tail_.set_car(handle);
+                tail_.set_car(ref);
             }
             else {
                 cell_object new_cell = make_cell_object(*heap_);
-                new_cell.set_car(handle);
+                new_cell.set_car(ref);
                 tail_.set_cdl(new_cell);
                 tail_ = new_cell;
             }
@@ -113,7 +114,7 @@ private:
     };
 
     object_heap*             heap_;
-    object_handle            result_;
+    object_ref            result_;
     array<list_builder, 512> stack_;
 };
 
