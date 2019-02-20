@@ -172,7 +172,7 @@ void print(std::ostream& out, const object_heap& heap, object_ref ref) {
 
 int main(int argc, char** argv) {
     object_heap heap;
-    object_ref program = parser(heap).parse("(+ 1 2)\n(divide (+ 3 4) 7)");
+    object_ref program = parser(heap).parse("(+ 1 2)\n(divide (+ 3 4) 7)\n(\"Hello\tWorld\")");
     print(std::cout, heap, program);
 
 #ifdef SNW_OS_WINDOWS
