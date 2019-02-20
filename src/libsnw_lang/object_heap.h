@@ -165,7 +165,7 @@ public:
     }
 
 public:
-    int64_t deref_integer(object_ref ref) {
+    int64_t deref_integer(object_ref ref) const {
         assert(ref.type == object_type::integer);
         if (ref.is_indirect) {
             return access<int64_t>(ref);
@@ -175,7 +175,7 @@ public:
         }
     }
 
-    const symbol& deref_symbol(object_ref ref) {
+    const symbol& deref_symbol(object_ref ref) const {
         assert(ref.type == object_type::symbol);
         if (ref.is_indirect) {
             return access<symbol>(ref);
@@ -185,7 +185,7 @@ public:
         }
     }
 
-    const string_object& deref_string(object_ref ref) {
+    const string_object& deref_string(object_ref ref) const {
         static const string_object empty_string = { 0 };
 
         assert(ref.type == object_type::string);
@@ -197,7 +197,7 @@ public:
         }
     }
 
-    const bytes_object& deref_bytes(object_ref ref) {
+    const bytes_object& deref_bytes(object_ref ref) const {
         static const bytes_object empty_bytes = { 0 };
 
         assert(ref.type == object_type::bytes);
@@ -209,7 +209,7 @@ public:
         }
     }
 
-    const cell_object& deref_cell(object_ref ref) {
+    const cell_object& deref_cell(object_ref ref) const {
         static const cell_object empty_cell;
 
         assert(ref.type == object_type::cell);
