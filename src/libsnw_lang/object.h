@@ -79,6 +79,10 @@ struct object_ref {
 // TODO: symbol_object
 using symbol = varchar<16>;
 
+struct symbol_object {
+    varchar<16> str;
+};
+
 struct string_object {
     uint16_t len;
     char     str[0];

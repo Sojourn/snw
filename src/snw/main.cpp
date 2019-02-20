@@ -49,9 +49,6 @@ void eval_fn(process& proc) {
     // ???
 }
 
-void print_fn(process& proc) {
-}
-
 void add_fn(process& proc) {
 }
 
@@ -157,8 +154,6 @@ void print(std::ostream& out, const object_heap& heap, object_ref ref) {
                     cell = heap.deref_cell(cell.cdr);
                 }
                 else {
-                    print(out, heap, cell.cdr);
-                    out << '.';
                     break;
                 }
             }
