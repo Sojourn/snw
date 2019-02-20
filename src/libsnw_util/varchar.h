@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cassert>
 #include "align.h"
+#include "hash.h"
 
 namespace snw {
 
@@ -74,6 +75,25 @@ public:
 
 private:
     char data_[align_up(capacity_, 16)];
+};
+
+}
+
+namespace std {
+template<size_t capacity> struct hash<snw::varchar<capacity>> {
+    using argument_type = snw::varchar<capacity>;
+    using result_type = uint32_t;
+
+    result_type operator()(const argument_type& value) const noexcept {
+        result_type hash = 0;
+        uint32_t chunk;
+        for (size_t i = 0; i < capacity; i += sizeof(chunk)) {
+            memcpy(&chunk, &value[i], sizeof(chunk));
+            hash ^= snw::hash32(chunk);
+        }
+
+        return hash;
+    }
 };
 
 }

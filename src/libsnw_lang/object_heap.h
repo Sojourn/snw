@@ -1,5 +1,6 @@
 #pragma once
 
+#include <limits>
 #include <cstdint>
 #include <cstddef>
 #include <cstring>
@@ -22,13 +23,6 @@ public:
         return ref;
     }
 
-    object_ref new_boolean(bool value) {
-        object_ref ref;
-        ref.type = object_type::boolean;
-        ref.value.boolean = value;
-        return ref;
-    }
-
     object_ref new_integer(int64_t value) {
         object_ref ref;
         ref.type = object_type::integer;
@@ -47,6 +41,14 @@ public:
         }
 
         return ref;
+    }
+
+    object_ref new_symbol(const char* name) {
+        return new_symbol(symbol(name));
+    }
+
+    object_ref new_symbol(const char* first, const char* last) {
+        return new_symbol(symbol(first, last - first));
     }
 
     object_ref new_symbol(const symbol& value) {
@@ -163,16 +165,6 @@ public:
     }
 
 public:
-    bool deref_boolean(object_ref ref) {
-        assert(ref.type == object_type::boolean);
-        if (ref.is_indirect) {
-            throw std::runtime_error("invalid object reference");
-        }
-        else {
-            return ref.value.boolean;
-        }
-    }
-
     int64_t deref_integer(object_ref ref) {
         assert(ref.type == object_type::integer);
         if (ref.is_indirect) {

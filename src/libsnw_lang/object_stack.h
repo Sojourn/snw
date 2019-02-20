@@ -35,6 +35,10 @@ public:
         return refs_[size_ - index - 1];
     }
 
+    bool empty() const {
+        return size_ == 0;
+    }
+
     void begin() {
         old_size_ = size_;
         memcpy(old_refs_, refs_, sizeof(old_refs_));

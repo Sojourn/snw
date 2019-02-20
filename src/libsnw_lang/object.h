@@ -8,11 +8,8 @@
 
 namespace snw {
 
-using symbol = varchar<16>;
-
 enum class object_type : uint8_t {
     nil,
-    boolean,
     integer,
     symbol,
     string,
@@ -28,7 +25,6 @@ struct object_ref {
 
     union {
         uint16_t address;
-        bool     boolean;
         int16_t  integer;
     } value;
 
@@ -52,13 +48,36 @@ struct object_ref {
         return hash32(encode());
     }
 
-    friend std::ostream& operator<<(std::ostream& out, const object_ref& ref);
+    friend std::ostream& operator<<(std::ostream& out, const object_ref& ref) {
+        out << "object_ref{";
+        out << "type:" << object_type_name(ref.type);
+        if (ref.is_indirect) {
+            out << " address:" << ref.value.address; // TODO: format as hex
+        }
+        else {
+            out << " value:";
+            switch (ref.type) {
+            case object_type::integer:
+                out << ref.value.integer;
+                break;
+            case object_type::string:
+                out << "\"\"";
+                break;
+            case object_type::bytes:
+                out << "[]";
+                break;
+            case object_type::nil:
+            default:
+                break;
+            }
+        }
+        out << "}";
+        return out;
+    }
 };
 
-struct cell_object {
-    object_ref car;
-    object_ref cdr;
-};
+// TODO: symbol_object
+using symbol = varchar<16>;
 
 struct string_object {
     uint16_t len;
@@ -71,5 +90,10 @@ struct bytes_object {
     uint8_t  buf[0];
 };
 static_assert(sizeof(bytes_object) == sizeof(uint16_t), "unexpected bytes_object size");
+
+struct cell_object {
+    object_ref car;
+    object_ref cdr;
+};
 
 }

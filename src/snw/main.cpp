@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <map>
 #include <vector>
 #include <array>
 #include <bitset>
@@ -16,54 +17,52 @@
 #include "object_heap.h"
 #include "object_stack.h"
 #include "object_transaction.h"
+#include "parser.h"
 
 using namespace snw;
 
-int main(int argc, char** argv) {
-    uint8_t buf[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+struct process;
+using function = void(*)(process&);
+using environment = std::map<symbol, function>;
 
-    object_heap heap;
-    {
-        auto n = heap.new_nil();
-        auto b0 = heap.new_boolean(false);
-        auto b1 = heap.new_boolean(true);
-        auto sym = heap.new_symbol("main");
-        auto str0 = heap.new_string("");
-        auto str1 = heap.new_string("Hello, World!");
-        auto buf0 = heap.new_bytes(nullptr, nullptr);
-        auto buf1 = heap.new_bytes(buf, buf + sizeof(buf));
-        auto cell0 = heap.new_cell(n, n);
-        auto cell1 = heap.new_cell(sym, cell0);
-        auto cell2 = heap.new_cell(str1, cell1);
+struct process {
+    object_heap  heap;
+    object_stack stack;
+    environment  env;
+};
 
-        {
-            object_ref refs[0] = {
-            };
+std::unique_ptr<process> make_process(const char* program) {
+    std::unique_ptr<process> proc(new process);
+    auto& heap = proc->heap;
+    auto& stack = proc->stack;
 
-            auto empty_list = heap.new_list(refs, refs + 0);
-        }
-        {
-            object_ref refs[3] = {
-                heap.new_symbol("a"),
-                heap.new_symbol("b"),
-                heap.new_symbol("c"),
-            };
+    stack.push(parser(heap).parse(program));
+    return proc;
+}
 
-            auto list = heap.new_list(refs, refs + 3);
-        }
-
-        // std::cout << heap.deref_nil(n) << std::endl;
-        std::cout << heap.deref_boolean(b0) << std::endl;
-        std::cout << heap.deref_boolean(b1) << std::endl;
-        std::cout << heap.deref_symbol(sym) << std::endl;
-        // std::cout << heap.deref_string(str0) << std::endl;
-        // std::cout << heap.deref_string(str1) << std::endl;
-        // std::cout << heap.deref_bytes(buf0) << std::endl;
-        // std::cout << heap.deref_bytes(buf1) << std::endl;
-        // std::cout << heap.deref_cell(cell0) << std::endl;
-        // std::cout << heap.deref_cell(cell1) << std::endl;
-        // std::cout << heap.deref_cell(cell2) << std::endl;
+void eval_fn(process& proc) {
+    if (proc.stack.empty()) {
+        proc.stack.push(proc.heap.new_nil());
+        return;
     }
+
+    // ???
+}
+
+void print_fn(process& proc) {
+}
+
+void add_fn(process& proc) {
+}
+
+int main(int argc, char** argv) {
+    auto proc = make_process("(+ (+ 1 2) 3)");
+
+    proc->env["eval"] = &eval_fn;
+    proc->env["print"] = &print_fn;
+    proc->env["+"] = &add_fn;
+
+    eval_fn(*proc);
 
 #ifdef SNW_OS_WINDOWS
     std::system("pause");

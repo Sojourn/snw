@@ -280,7 +280,7 @@ namespace snw {
         array<char, (1 << 16)> buffer_;
     };
 
-    // TODO: rename to lex
+    // TODO: rename to tokenize
     template<typename Parser>
     void parse(const char* source, Parser& parser) {
         lexer l(source);

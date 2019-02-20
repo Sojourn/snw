@@ -1,5 +1,7 @@
 set(SNW_SRCS
+    object.cpp
     lexer.cpp
+    parser.cpp
 )
 
 set(SNW_HDRS

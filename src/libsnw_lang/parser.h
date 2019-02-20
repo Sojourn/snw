@@ -1,121 +1,51 @@
 #pragma once
 
+#include <vector>
+#include <cstddef>
 #include "object.h"
-#include "object_heap.h"
-#include "object_stack.h"
 #include "lexer.h"
 #include "array.h"
 
 namespace snw {
 
+class object_heap;
+
 class parser {
     friend class lexer;
 public:
-    parser(object_heap* heap)
-        : heap_(heap)
-        , result_(heap->new_nil())
-    {
-    }
+    parser(object_heap& heap);
 
-    object_ref parse(const char* str) {
-        try {
-            snw::parse(str, *this);
-            object_ref result = result_;
-            result_ = make_nil_object(*heap_);
-            return result;
-        }
-        catch (const std::exception&) {
-            result_ = make_nil_object(*heap_);
-            stack_.clear();
-            throw;
-        }
-    }
+    object_ref parse(const char* str);
 
 private:
-    void open_file() {
-        list_builder builder(*heap_);
-        result_ = builder.back();
-        stack_.push_back(builder);
-    }
-
-    void close_file() {
-        if (stack_.size() != 1) {
-            throw std::runtime_error("Missing ')'");
-        }
-        stack_.pop_back();
-    }
-
-    void open_list() {
-        list_builder builder(*heap_);
-        stack_.back().push_back(builder.back());
-        stack_.push_back(builder);
-    }
-
-    void close_list() {
-        if (stack_.size() == 1) {
-            throw std::runtime_error("Missing '('");
-        }
-        stack_.pop_back();
-    }
-
-    void integer(int64_t value) {
-        stack_.back().push_back(make_integer_object(*heap_, value));
-    }
-
-    void string(const char* first, const char* last) {
-        stack_.back().push_back(make_string_object(*heap_, first, last););
-    }
-
-    void symbol(const char* first, const char* last) {
-        stack_.back().push_back(make_symbol_object(*heap_, first, last));
-    }
-
-    void comment(const char* first, const char* last) {
-        (void)first;
-        (void)last;
-    }
-
-    void error(const snw::lexer_error& err) {
-        throw std::runtime_error("lexer error");
-    }
+    void open_file();
+    void close_file();
+    void open_list();
+    void close_list();
+    void integer(int64_t value);
+    void string(const char* first, const char* last);
+    void symbol(const char* first, const char* last);
+    void comment(const char* first, const char* last);
+    void error(const snw::lexer_error& err);
 
 private:
-    class list_builder {
-    public:
-        list_builder(object_heap& heap)
-            : heap_(&heap)
-            , tail_(make_cell_object(heap))
-            , size_(0)
-        {
-        }
+    object_ref pop_list();
 
-        cell_object back() const {
-            return tail_;
-        }
+private:
+#if 0
+    static constexpr size_t max_frame_size_ = 128;
+    static constexpr size_t max_stack_size_ = 128;
 
-        void push_back(object_ref ref) {
-            if (size_ == 0) {
-                tail_.set_car(ref);
-            }
-            else {
-                cell_object new_cell = make_cell_object(*heap_);
-                new_cell.set_car(ref);
-                tail_.set_cdl(new_cell);
-                tail_ = new_cell;
-            }
+    using frame = array<object_ref, max_frame_size_>;
+    using stack = array<frame, max_stack_size_>;
+#else
+    using frame = std::vector<object_ref>;
+    using stack = std::vector<frame>;
+#endif
 
-            ++size_;
-        }
-
-    private:
-        object_heap*              heap_;
-        object<object_type::cell> tail_;
-        size_t                    size_;
-    };
-
-    object_heap*             heap_;
-    object_ref            result_;
-    array<list_builder, 512> stack_;
+    object_heap& heap_;
+    object_ref   program_;
+    stack        stack_;
 };
 
 }

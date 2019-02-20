@@ -23,16 +23,4 @@ inline uint32_t hash32(uint32_t x) {
     return x;
 }
 
-template<size_t capacity>
-inline uint32_t hash32(const varchar<capacity>& value) {
-    uint32_t hash = 0;
-    for (size_t i = 0; i < capacity; i += sizeof(hash)) {
-        uint32_t x;
-        memcpy(&x, &value[i], sizeof(x));
-        hash ^= hash32(x);
-    }
-
-    return hash;
-}
-
 }
