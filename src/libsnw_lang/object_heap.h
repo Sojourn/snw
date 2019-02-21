@@ -30,12 +30,13 @@ public:
             ref.value.integer = static_cast<int16_t>(value);
         }
         else {
-            check_free_space(sizeof(value));
+            check_free_space(sizeof(integer_repr));
 
             ref.is_indirect = true;
             ref.value.address = size_;
 
-            access<int64_t>(ref) = value;
+            auto& repr = access<integer_repr>(ref);
+            repr.value = value;
 
             size_ += sizeof(value);
         }
@@ -51,17 +52,18 @@ public:
         return new_symbol(symbol(first, last - first));
     }
 
-    object_ref new_symbol(const symbol& value) {
-        check_free_space(sizeof(value));
+    object_ref new_symbol(const symbol& name) {
+        check_free_space(sizeof(symbol_repr));
 
         object_ref ref;
         ref.type = object_type::symbol;
         ref.is_indirect = true;
         ref.value.address = size_;
 
-        access<symbol>(ref) = value;
+        auto& repr = access<symbol_repr>(ref);
+        repr.name = name;
 
-        size_ += sizeof(value);
+        size_ += sizeof(symbol);
         return ref;
     }
 
@@ -74,16 +76,16 @@ public:
         ref.type = object_type::string;
         if (first != last) {
             size_t str_len = last - first;
-            size_t alloc_size = align_up(sizeof(string_object) + str_len + 1, alignment_);
+            size_t alloc_size = align_up(sizeof(string_repr) + str_len + 1, alignment_);
             check_free_space(alloc_size);
 
             ref.is_indirect = true;
             ref.value.address = static_cast<uint16_t>(size_);
 
-            auto& obj = access<string_object>(ref);
-            obj.len = str_len;
-            memcpy(obj.str, first, str_len);
-            obj.str[str_len] = '\0';
+            auto& repr = access<string_repr>(ref);
+            repr.len = str_len;
+            memcpy(repr.str, first, str_len);
+            repr.str[str_len] = '\0';
 
             size_ += alloc_size;
         }
@@ -96,15 +98,15 @@ public:
         ref.type = object_type::bytes;
         if (first != last) {
             size_t buf_len = last - first;
-            size_t alloc_size = align_up(sizeof(bytes_object) + buf_len, alignment_);
+            size_t alloc_size = align_up(sizeof(bytes_repr) + buf_len, alignment_);
             check_free_space(alloc_size);
 
             ref.is_indirect = true;
             ref.value.address = static_cast<uint16_t>(size_);
 
-            auto& obj = access<bytes_object>(ref);
-            obj.len = buf_len;
-            memcpy(obj.buf, first, buf_len);
+            auto& repr = access<bytes_repr>(ref);
+            repr.len = buf_len;
+            memcpy(repr.buf, first, buf_len);
 
             size_ += alloc_size;
         }
@@ -116,19 +118,18 @@ public:
         object_ref ref;
         ref.type = object_type::cell;
         if ((car.type != object_type::nil) || (cdr.type != object_type::nil)) {
-            check_free_space(sizeof(cell_object));
+            check_free_space(sizeof(cell_repr));
 
             object_ref ref;
             ref.type = object_type::cell;
             ref.is_indirect = true;
             ref.value.address = static_cast<uint16_t>(size_);
 
-            cell_object cell;
-            cell.car = car;
-            cell.cdr = cdr;
-            access<cell_object>(ref) = cell;
+            auto& repr = access<cell_repr>(ref);
+            repr.car = car;
+            repr.cdr = cdr;
 
-            size_ += sizeof(cell_object);
+            size_ += sizeof(cell_repr);
         }
 
         return ref;
@@ -136,7 +137,7 @@ public:
 
     object_ref new_list(const object_ref* first, const object_ref* last) {
         ssize_t len = last - first;
-        size_t alloc_size = sizeof(cell_object) * len;
+        size_t alloc_size = sizeof(cell_repr) * len;
         check_free_space(alloc_size);
 
         object_ref head = new_nil();
@@ -144,18 +145,11 @@ public:
             object_ref cell_ref;
             cell_ref.type = object_type::cell;
             cell_ref.is_indirect = true;
-            cell_ref.value.address = size_ + (i * sizeof(cell_object));
+            cell_ref.value.address = size_ + (i * sizeof(cell_repr));
 
-            cell_object cell;
-            cell.car = first[i];
-            if (i < (len - 1)) {
-                cell.cdr = head;
-            }
-            else {
-                // last list item
-                cell.cdr = new_nil();
-            }
-            access<cell_object>(cell_ref) = cell;
+            auto& repr = access<cell_repr>(cell_ref);
+            repr.car = first[i];
+            repr.cdr = (i < (len - 1)) ? head : new_nil();
 
             head = cell_ref;
         }
@@ -165,60 +159,34 @@ public:
     }
 
 public:
-    int64_t deref_integer(object_ref ref) const {
+    const integer_repr& deref_integer(object_ref ref) const {
         assert(ref.type == object_type::integer);
-        if (ref.is_indirect) {
-            return access<int64_t>(ref);
-        }
-        else {
-            return ref.value.integer;
-        }
+        assert(ref.is_indirect);
+        return access<integer_repr>(ref);
     }
 
-    const symbol& deref_symbol(object_ref ref) const {
+    const symbol_repr& deref_symbol(object_ref ref) const {
         assert(ref.type == object_type::symbol);
-        if (ref.is_indirect) {
-            return access<symbol>(ref);
-        }
-        else {
-            throw std::runtime_error("invalid object reference");
-        }
+        assert(ref.is_indirect);
+        return access<symbol_repr>(ref);
     }
 
-    const string_object& deref_string(object_ref ref) const {
-        static const string_object empty_string = { 0 };
-
+    const string_repr& deref_string(object_ref ref) const {
         assert(ref.type == object_type::string);
-        if (ref.is_indirect) {
-            return access<string_object>(ref);
-        }
-        else {
-            return empty_string;
-        }
+        assert(ref.is_indirect);
+        return access<string_repr>(ref);
     }
 
-    const bytes_object& deref_bytes(object_ref ref) const {
-        static const bytes_object empty_bytes = { 0 };
-
+    const bytes_repr& deref_bytes(object_ref ref) const {
         assert(ref.type == object_type::bytes);
-        if (ref.is_indirect) {
-            return access<bytes_object>(ref);
-        }
-        else {
-            return empty_bytes;
-        }
+        assert(ref.is_indirect);
+        return access<bytes_repr>(ref);
     }
 
-    const cell_object& deref_cell(object_ref ref) const {
-        static const cell_object empty_cell;
-
+    const cell_repr& deref_cell(object_ref ref) const {
         assert(ref.type == object_type::cell);
-        if (ref.is_indirect) {
-            return access<cell_object>(ref);
-        }
-        else {
-            return empty_cell;
-        }
+        assert(ref.is_indirect);
+        return access<cell_repr>(ref);
     }
 
 public:

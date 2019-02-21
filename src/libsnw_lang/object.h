@@ -76,26 +76,30 @@ struct object_ref {
     }
 };
 
-// TODO: symbol_object
+struct nil_repr {
+};
+
+struct integer_repr {
+    int64_t value = 0;
+};
+
 using symbol = varchar<16>;
 
-struct symbol_object {
-    varchar<16> str;
+struct symbol_repr {
+    symbol name;
 };
 
-struct string_object {
-    uint16_t len;
-    char     str[0];
+struct string_repr {
+    uint16_t len = 0;
+    char     str[0] = {};
 };
-static_assert(sizeof(string_object) == sizeof(uint16_t), "unexpected string_object size");
 
-struct bytes_object {
-    uint16_t len;
-    uint8_t  buf[0];
+struct bytes_repr {
+    uint16_t len = 0;
+    uint8_t  buf[0] = {};
 };
-static_assert(sizeof(bytes_object) == sizeof(uint16_t), "unexpected bytes_object size");
 
-struct cell_object {
+struct cell_repr {
     object_ref car;
     object_ref cdr;
 };
