@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <cstring>
-#include "varchar.h"
 
 namespace snw {
 

@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstring>
 #include "align.h"
-#include "object.h"
+#include "object_ref.h"
 
 namespace snw {
 

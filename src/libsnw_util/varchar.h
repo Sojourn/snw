@@ -85,14 +85,14 @@ template<size_t capacity> struct hash<snw::varchar<capacity>> {
     using result_type = uint32_t;
 
     result_type operator()(const argument_type& value) const noexcept {
-        result_type hash = 0;
+        result_type result = 0;
         uint32_t chunk;
         for (size_t i = 0; i < capacity; i += sizeof(chunk)) {
             memcpy(&chunk, &value[i], sizeof(chunk));
-            hash ^= snw::hash32(chunk);
+            result ^= snw::hash32(chunk);
         }
 
-        return hash;
+        return result;
     }
 };
 

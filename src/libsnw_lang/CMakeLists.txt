@@ -1,11 +1,12 @@
 set(SNW_SRCS
-    object.cpp
+    object_ref.cpp
     lexer.cpp
     parser.cpp
 )
 
 set(SNW_HDRS
     snw_lang.h
+    object_ref.h
     object.h
     object_heap.h
     object_stack.h

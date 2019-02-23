@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <cstddef>
 #include <cstring>
-#include "object.h"
+#include "object_ref.h"
 
 namespace snw {
 
