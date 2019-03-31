@@ -102,7 +102,7 @@ int main(int argc, const char** argv) {
     Board<width, height> solution;
     solution.set();
 
-    for (int state = 0; state < 4096; ++state) {
+    for (int state = 0; state < (1 << (2 * fanCount)); ++state) {
         Board<width, height> board;
         for (int fan = 0; fan < fanCount; ++fan) {
             board = board | spinning.get(fan, state);
