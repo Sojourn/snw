@@ -8,45 +8,84 @@ struct Point {
     int y;
 };
 
-enum class FanDirection {
-    north,
-    east,
-    south,
-    west,
+template<size_t width, size_t height>
+class Board {
+public:
+    Board()
+        : data_(0)
+    {
+    }
+
+    void set(size_t x, size_t y) {
+        data_ |= (1 << ((y * width) + x));
+    }
+
+    void set() {
+        for (size_t y = 0; y < height; ++y) {
+            for (size_t x = 0; x < width; ++x) {
+                set(x, y);
+            }
+        }
+    }
+
+    bool operator==(const Board& rhs) {
+        return data_ == rhs.data_;
+    }
+
+    Board operator|(const Board& rhs) const {
+        Board result;
+        result.data_ = data_ | rhs.data_;
+        return result;
+    }
+
+private:
+    uint32_t data_;
 };
 
-const char* fanDirectionName(FanDirection fd) {
-    switch (fd) {
-    case FanDirection::north:
-        return "north";
-    case FanDirection::east:
-        return "east";
-    case FanDirection::south:
-        return "south";
-    case FanDirection::west:
-        return "west";
-    default:
-        abort();
+template<int width, int height, int fanCount>
+class Spinning {
+public:
+    Spinning(const Point(&fanPositions)[fanCount]) {
+        for (int i = 0; i < fanCount; ++i) {
+            Point fanPosition = fanPositions[i];
+            {
+                auto& board = boardCache_[i][0];
+                for (int y = fanPosition.y; y < height; ++y) {
+                    board.set(fanPosition.x, y);
+                }
+            }
+            {
+                auto& board = boardCache_[i][1];
+                for (int x = fanPosition.x; x < width; ++x) {
+                    board.set(x, fanPosition.y);
+                }
+            }
+            {
+                auto& board = boardCache_[i][2];
+                for (int y = fanPosition.y; y >= 0; --y) {
+                    board.set(fanPosition.x, y);
+                }
+            }
+            {
+                auto& board = boardCache_[i][3];
+                for (int x = fanPosition.x; x >= 0; --x) {
+                    board.set(x, fanPosition.y);
+                }
+            }
+        }
     }
-}
 
-// Return the direction a fan is pointing in this problem state
-FanDirection getFanDirection(uint64_t fanIndex, uint64_t state) {
-    return static_cast<FanDirection>((state >> (fanIndex * 2)) & 3);
-}
+    const Board<width, height>& get(int fan, int state) const {
+        int dir = (state >> (fan * 2)) & 3;
+        return boardCache_[fan][dir];
+    }
 
-// Return the number of unique states that exist for a problem with this many fans
-uint64_t uniqueStateCount(uint64_t fanCount) {
-    return 1ull << (fanCount * 2);
-}
+private:
+    Board<width, height> boardCache_[fanCount][4];
+};
 
 int main(int argc, const char** argv) {
-    static constexpr int height = 4;
-    static constexpr int width = 5;
-    static constexpr uint64_t fanCount = 6;
-
-    // An array of fan locations
-    Point fans[fanCount] = {
+    Point fans[] = {
         { 0, 0 },
         { 0, 3 },
         { 2, 2 },
@@ -55,72 +94,37 @@ int main(int argc, const char** argv) {
         { 4, 0 },
     };
 
-    // A 2-d array of locations that are spinning, either because they are fans, or because
-    // they are being blown by a fan
-    bool spinning[height][width];
+    static constexpr int fanCount = sizeof(fans) / sizeof(Point);
+    static constexpr int height = 4;
+    static constexpr int width = 5;
 
-    // Each state represents a particular configuration of fan orientations. Brute force all
-    // of the configurations until a solution is found.
-    for (uint64_t state = 0; state < uniqueStateCount(fanCount); ++state) {
-        // Reset
-        for (int y = 0; y < height; ++y) {
-            for (int x = 0; x < width; ++x) {
-                spinning[y][x] = false;
-            }
+    Spinning<width, height, fanCount> spinning(fans);
+    Board<width, height> solution;
+    solution.set();
+
+    for (int state = 0; state < 4096; ++state) {
+        Board<width, height> board;
+        for (int fan = 0; fan < fanCount; ++fan) {
+            board = board | spinning.get(fan, state);
         }
-
-        // Mark which locations are spinning
-        for (uint64_t fanIndex = 0; fanIndex < fanCount; ++fanIndex) {
-            Point fanPosition = fans[fanIndex];
-            FanDirection fanDirection = getFanDirection(fanIndex, state);
-
-            // Note: height/width/coordinates are signed to make reverse-loops simpler
-            switch (fanDirection) {
-            case FanDirection::north:
-                for (int y = fanPosition.y; y < height; ++y) {
-                    spinning[y][fanPosition.x] = true;
+        if (board == solution) {
+            std::cout << "found solution" << std::endl;
+            for (int fan = 0; fan < fanCount; ++fan) {
+                std::cout << '(' << fans[fan].x << ", " << fans[fan].y << "): ";
+                switch ((state >> (fan * 2)) & 3) {
+                case 0:
+                    std::cout << "north" << std::endl;
+                    break;
+                case 1:
+                    std::cout << "east" << std::endl;
+                    break;
+                case 2:
+                    std::cout << "south" << std::endl;
+                    break;
+                case 3:
+                    std::cout << "west" << std::endl;
+                    break;
                 }
-                break;
-
-            case FanDirection::east:
-                for (int x = fanPosition.x; x < width; ++x) {
-                    spinning[fanPosition.y][x] = true;
-                }
-                break;
-
-            case FanDirection::south:
-                for (int y = fanPosition.y; y >= 0; --y) {
-                    spinning[y][fanPosition.x] = true;
-                }
-                break;
-
-            case FanDirection::west:
-                for (int x = fanPosition.x; x >= 0; --x) {
-                    spinning[fanPosition.y][x] = true;
-                }
-                break;
-
-            default:
-                abort();
-            }
-        }
-
-        // Check if this is a solution (is everything spinning?)
-        bool foundSolution = true;
-        for (int y = 0; y < height; ++y) {
-            for (int x = 0; x < width; ++x) {
-                foundSolution &= spinning[y][x];
-            }
-        }
-
-        // Print the solution
-        if (foundSolution) {
-            std::cout << "solution found" << std::endl;
-
-            for (uint64_t fanIndex = 0; fanIndex < fanCount; ++fanIndex) {
-                Point fanPosition = fans[fanIndex];
-                FanDirection fanDirection = getFanDirection(fanIndex, state);
-                std::cout << '(' << fanPosition.x << ", " << fanPosition.y << "): " << fanDirectionName(fanDirection) << std::endl;
             }
 
             break;
