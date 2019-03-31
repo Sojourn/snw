@@ -5,4 +5,4 @@ add_subdirectory(libsnw_lang)
 
 add_subdirectory(unit_test)
 add_subdirectory(snw)
-
+add_subdirectory(puzzle)
