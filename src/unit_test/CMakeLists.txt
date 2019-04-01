@@ -12,6 +12,7 @@ set(SNW_SRCS
     t_event_future.cpp
     t_mem_page_list.cpp
     t_mem_page_stack.cpp
+    t_mem_stream_buffer.cpp
     t_lang_text_reader.cpp
     t_lang_lexer.cpp
 )
@@ -29,4 +30,4 @@ set(SNW_LIBS
 
 add_executable(unit_test ${SNW_SRCS} ${SNW_HDRS})
 
-target_link_libraries(unit_test LINK_PUBLIC ${SNW_LIBS})
+target_link_libraries(unit_test LINK_PUBLIC ${SNW_LIBS} rt)
