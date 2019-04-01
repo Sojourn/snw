@@ -96,7 +96,7 @@ snw::stream_buffer::stream_buffer(size_t min_size = 0)
     }
 
     // allocate enough virtual memory to fit the shm object twice (for the upper/lower mapping)
-    void* lower_addr = mmap(nullptr, size_ * 2, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, fd_, 0);
+    void* lower_addr = mmap(nullptr, size_ * 2, PROT_READ|PROT_WRITE, MAP_SHARED, fd_, 0);
     if (lower_addr == MAP_FAILED) {
         int rc;
         rc = ::close(fd_);
@@ -129,7 +129,7 @@ snw::stream_buffer::stream_buffer(size_t min_size = 0)
     data_ = reinterpret_cast<uint8_t*>(lower_addr);
 
     // do the upper mapping
-    void* upper_addr = mmap(data_+ size_, size_, PROT_READ|PROT_WRITE, MAP_FIXED|MAP_PRIVATE|MAP_ANONYMOUS, fd_, 0);
+    void* upper_addr = mmap(data_+ size_, size_, PROT_READ|PROT_WRITE, MAP_FIXED|MAP_SHARED, fd_, 0);
     if (upper_addr == MAP_FAILED) {
         int rc;
         rc = ::close(fd_);
