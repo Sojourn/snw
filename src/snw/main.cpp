@@ -84,23 +84,27 @@ public:
         wrseq_ = rseq_;
     }
 
+    size_t writable() const {
+        return buffer_.size() - (wwseq_ - wrseq_);
+    }
+
     template<size_t len>
     void* write() {
-        if ((buffer_.size() - (wwseq_ - wrseq_)) < len) {
+        if (writable() < len) {
             return nullptr;
         }
 
-        void* buf = &buffer_.data()[wwseq_ & mask_];
+        void* buf = deref(wwseq_);
         wwseq_ += len;
         return buf;
     }
 
     void* write(size_t len) {
-        if ((buffer_.size() - (wwseq_ - wrseq_)) < len) {
+        if (writable() < len) {
             return nullptr;
         }
 
-        void* buf = &buffer_.data()[wwseq_ & mask_];
+        void* buf = deref(wwseq_);
         wwseq_ += len;
         return buf;
     }
@@ -117,23 +121,27 @@ public:
         rwseq_ = wseq_;
     }
 
+    size_t readable() const {
+        return rwseq_ - rrseq_;
+    }
+
     template<size_t len>
     const void* read() {
-        if ((rwseq_ - rrseq_) < len) {
+        if (readable() < len) {
             return nullptr;
         }
 
-        const void* buf = &buffer_.data()[rrseq_ & mask_];
+        const void* buf = deref(rrseq_);
         rrseq_ += len;
         return buf;
     }
 
     const void* read(size_t len) {
-        if ((rwseq_ - rrseq_) < len) {
+        if (readable() < len) {
             return nullptr;
         }
 
-        const void* buf = &buffer_.data()[rrseq_ & mask_];
+        const void* buf = deref(rrseq_);
         rrseq_ += len;
         return buf;
     }
@@ -144,6 +152,15 @@ public:
 
     void read_rollback() {
         rrseq_ = rseq_;
+    }
+
+private:
+    void* deref(size_t seq) {
+        return &buffer_.data()[seq & mask_];
+    }
+
+    const void* deref(size_t seq) const {
+        return &buffer_.data()[seq & mask_];
     }
 
 private:
