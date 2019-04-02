@@ -80,59 +80,47 @@ public:
         memset(pad3_, 0, sizeof(pad3_));
     }
 
-    void batch_write_begin() {
+    void write_begin() {
         wrseq_ = rseq_;
     }
 
-    bool batch_write_append(const void* buf, size_t len) {
+    void* write(size_t len) {
         if ((buffer_.size() - (wwseq_ - wrseq_)) < len) {
-            return false;
+            return nullptr;
         }
 
-        memcpy(&buffer_.data()[wwseq_ & mask_], buf, len);
+        void* buf = &buffer_.data()[wwseq_ & mask_];
         wwseq_ += len;
-        return true;
+        return buf;
     }
 
-    template<typename T>
-    bool batch_write_append(const T& val) {
-        size_t len = sizeof(val);
-
-        if ((buffer_.size() - (wwseq_ - wrseq_)) < len) {
-            return false;
-        }
-
-        memcpy(&buffer_.data()[wwseq_ & mask_], &val, len);
-        wwseq_ += len;
-        return true;
-    }
-
-    void batch_write_commit() {
+    void write_commit() {
         wseq_ = wwseq_;
     }
 
-    void batch_write_rollback() {
+    void write_rollback() {
         wwseq_ = wseq_;
     }
 
-    void batch_read_begin(const void** buf, size_t* len) {
+    void read_begin() {
         rwseq_ = wseq_;
-
-        *buf = &buffer_.data()[rrseq_ & mask_];
-        *len = rwseq_ - rrseq_;
     }
 
-    void batch_read_commit() {
-        rrseq_ = rwseq_;
-        rseq_ = rwseq_;
-    }
+    const void* read(size_t len) {
+        if ((rwseq_ - rrseq_) < len) {
+            return nullptr;
+        }
 
-    void batch_read_commit(size_t len) {
+        const void* buf = &buffer_.data()[rrseq_ & mask_];
         rrseq_ += len;
+        return buf;
+    }
+
+    void read_commit() {
         rseq_ = rrseq_;
     }
 
-    void batch_read_rollback() {
+    void read_rollback() {
         rrseq_ = rseq_;
     }
 
@@ -155,38 +143,42 @@ private:
     std::atomic_size_t rseq_;
 };
 
-class spsc_batch_writer {
+class spsc_queue_writer {
 public:
-    spsc_batch_writer(spsc_queue& queue)
+    spsc_queue_writer(spsc_queue& queue)
         : queue_(queue)
         , done_(false)
     {
-        queue_.batch_write_begin();
+        queue_.write_begin();
     }
 
-    spsc_batch_writer(spsc_batch_writer&&) = delete;
-    spsc_batch_writer(const spsc_batch_writer&) = delete;
+    spsc_queue_writer(spsc_queue_writer&&) = delete;
+    spsc_queue_writer(const spsc_queue_writer&) = delete;
 
-    ~spsc_batch_writer() {
+    ~spsc_queue_writer() {
         if (!done_) {
-            queue_.batch_write_rollback();
+            queue_.write_rollback();
         }
     }
 
-    spsc_batch_writer& operator=(spsc_batch_writer&&) = delete;
-    spsc_batch_writer& operator=(const spsc_batch_writer&) = delete;
+    spsc_queue_writer& operator=(spsc_queue_writer&&) = delete;
+    spsc_queue_writer& operator=(const spsc_queue_writer&) = delete;
 
     template<typename T>
     void write(const T& val) {
         assert(!done_);
-        if (!queue_.batch_write_append(val)) {
+
+        void* buf = queue_.write(sizeof(val));
+        if (!buf) {
             throw std::runtime_error("write failed");
         }
+
+        memcpy(buf, &val, sizeof(val));
     }
 
     void commit() {
         assert(!done_);
-        queue_.batch_write_commit();
+        queue_.write_commit();
         done_ = true;
     }
 
@@ -195,45 +187,42 @@ private:
     bool        done_;
 };
 
-class spsc_batch_reader {
+class spsc_queue_reader {
 public:
-    spsc_batch_reader(spsc_queue& queue)
+    spsc_queue_reader(spsc_queue& queue)
         : queue_(queue)
         , done_(false)
-        , buf_(nullptr)
-        , len_(0)
-        , off_(0)
     {
-        queue_.batch_read_begin(&buf_, &len_);
+        queue_.read_begin();
     }
 
-    spsc_batch_reader(spsc_batch_reader&&) = delete;
-    spsc_batch_reader(const spsc_batch_reader&) = delete;
+    spsc_queue_reader(spsc_queue_reader&&) = delete;
+    spsc_queue_reader(const spsc_queue_reader&) = delete;
 
-    ~spsc_batch_reader() {
+    ~spsc_queue_reader() {
         if (!done_) {
-            queue_.batch_read_rollback();
+            queue_.read_rollback();
         }
     }
 
-    spsc_batch_reader& operator=(spsc_batch_reader&&) = delete;
-    spsc_batch_reader& operator=(const spsc_batch_reader&) = delete;
+    spsc_queue_reader& operator=(spsc_queue_reader&&) = delete;
+    spsc_queue_reader& operator=(const spsc_queue_reader&) = delete;
 
     template<typename T>
-    bool try_read(T* val) {
-        if ((len_ - off_) < sizeof(*val)) {
+    bool try_read(T& val) {
+        const void* buf = queue_.read(sizeof(val));
+        if (!buf) {
             return false;
         }
 
-        memcpy(val, static_cast<const uint8_t*>(buf_)+off_, sizeof(*val));
-        off_ += sizeof(*val);
+        memcpy(&val, buf, sizeof(val));
         return true;
     }
 
     template<typename T>
     T read() {
         T val;
-        if (!try_read(&val)) {
+        if (!try_read(val)) {
             throw std::runtime_error("read failed");
         }
 
@@ -242,7 +231,7 @@ public:
 
     void commit() {
         assert(!done_);
-        queue_.batch_read_commit(off_);
+        queue_.read_commit();
         done_ = true;
     }
 
@@ -263,18 +252,18 @@ int main(int argc, const char** argv) {
 
         for (int j = 0; j < (1 << 20); ++j) {
             {
-                snw::spsc_batch_writer writer(queue);
+                snw::spsc_queue_writer writer(queue);
                 for (char c: "hello, world") {
                     writer.write(c);
                 }
                 writer.commit();
             }
             {
-                snw::spsc_batch_reader reader(queue);
+                snw::spsc_queue_reader reader(queue);
 
                 char c;
                 str.clear();
-                while (reader.try_read(&c)) {
+                while (reader.try_read(c)) {
                     str.push_back(c);
                 }
                 str.push_back('\n');
