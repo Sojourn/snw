@@ -27,11 +27,12 @@ TEST_CASE("stream_buffer") {
             CHECK(!sb2);
         }
     }
-    SECTION("reflection") {
+    SECTION("mirroring") {
         snw::stream_buffer sb(4096);
         uint8_t* lower_data = sb.data();
         uint8_t* upper_data = sb.data() + sb.size();
 
+        // check that writes to lower_data are visible in upper_data
         for (size_t i = 0; i < sb.size(); ++i) {
             lower_data[i] = static_cast<uint8_t>(i);
             CHECK(lower_data[i] == upper_data[i]);
@@ -40,6 +41,7 @@ TEST_CASE("stream_buffer") {
         memset(lower_data, 0, sb.size());
         memset(upper_data, 0, sb.size());
 
+        // check that writes to upper_data are visible in lower_data
         for (size_t i = 0; i < sb.size(); ++i) {
             upper_data[i] = static_cast<uint8_t>(i);
             CHECK(lower_data[i] == upper_data[i]);
@@ -50,8 +52,8 @@ TEST_CASE("stream_buffer") {
         uint8_t* lower_data = sb.data();
         uint8_t* upper_data = sb.data() + sb.size();
 
+        // check that a write spanning lower and upper wraps correctly
         memset(lower_data + sb.size() - 4, 'A', 8);
-
         CHECK(memcmp(lower_data + sb.size() - 4, lower_data, 4) == 0);
         CHECK(memcmp(upper_data + sb.size() - 4, upper_data, 4) == 0);
     }
