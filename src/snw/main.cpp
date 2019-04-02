@@ -10,6 +10,8 @@
 #include <cstring>
 #include <cassert>
 
+#include <unistd.h>
+
 #include "stream_buffer.h"
 
 namespace snw {
@@ -257,6 +259,7 @@ private:
 int main(int argc, const char** argv) {
     try {
         snw::spsc_queue queue(1 << 16);
+        std::vector<char> str;
 
         for (int j = 0; j < (1 << 20); ++j) {
             {
@@ -269,15 +272,15 @@ int main(int argc, const char** argv) {
             {
                 snw::spsc_batch_reader reader(queue);
 
-                std::vector<char> str;
                 char c;
+                str.clear();
                 while (reader.try_read(&c)) {
                     str.push_back(c);
                 }
-                str.push_back('\0');
+                str.push_back('\n');
                 reader.commit();
 
-                std::cout << str.data() << std::endl;
+                write(1, str.data(), str.size());
             }
         }
     }
