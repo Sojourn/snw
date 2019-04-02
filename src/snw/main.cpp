@@ -84,6 +84,17 @@ public:
         wrseq_ = rseq_;
     }
 
+    template<size_t len>
+    void* write() {
+        if ((buffer_.size() - (wwseq_ - wrseq_)) < len) {
+            return nullptr;
+        }
+
+        void* buf = &buffer_.data()[wwseq_ & mask_];
+        wwseq_ += len;
+        return buf;
+    }
+
     void* write(size_t len) {
         if ((buffer_.size() - (wwseq_ - wrseq_)) < len) {
             return nullptr;
@@ -104,6 +115,17 @@ public:
 
     void read_begin() {
         rwseq_ = wseq_;
+    }
+
+    template<size_t len>
+    const void* read() {
+        if ((rwseq_ - rrseq_) < len) {
+            return nullptr;
+        }
+
+        const void* buf = &buffer_.data()[rrseq_ & mask_];
+        rrseq_ += len;
+        return buf;
     }
 
     const void* read(size_t len) {
@@ -168,12 +190,23 @@ public:
     void write(const T& val) {
         assert(!done_);
 
-        void* buf = queue_.write(sizeof(val));
+        void* buf = queue_.write<sizeof(val)>();
         if (!buf) {
             throw std::runtime_error("write failed");
         }
 
         memcpy(buf, &val, sizeof(val));
+    }
+
+    void write(const void* src_buf, size_t len) {
+        assert(!done_);
+
+        void* dst_buf = queue_.write(len);
+        if (!dst_buf) {
+            throw std::runtime_error("write failed");
+        }
+
+        memcpy(dst_buf, src_buf, len);
     }
 
     void commit() {
@@ -210,7 +243,7 @@ public:
 
     template<typename T>
     bool try_read(T& val) {
-        const void* buf = queue_.read(sizeof(val));
+        const void* buf = queue_.read<sizeof(val)>();
         if (!buf) {
             return false;
         }
@@ -222,10 +255,12 @@ public:
     template<typename T>
     T read() {
         T val;
-        if (!try_read(val)) {
+        const void* buf = queue_.read(sizeof(val));
+        if (!buf) {
             throw std::runtime_error("read failed");
         }
 
+        memcpy(&val, buf, sizeof(val));
         return val;
     }
 
