@@ -16,55 +16,10 @@
 
 namespace snw {
 
-class message_stream {
+template<typename Sequence>
+class basic_byte_stream {
 public:
-    message_stream(size_t size)
-        : buffer_(size)
-        , mask_(buffer_.size() - 1)
-        , wseq_(0)
-        , rseq_(0)
-    {
-    }
-
-    bool write(const char* msg) {
-        size_t len = strlen(msg) + 1;
-        if (len > writable()) {
-            return false;
-        }
-
-        memcpy(buffer_.data() + (wseq_ & mask_), msg, len);
-        wseq_ += len;
-        return true;
-    }
-
-    const char* read() {
-        if (readable() == 0) {
-            return nullptr;
-        }
-
-        const char* msg = reinterpret_cast<const char*>(buffer_.data() + (rseq_ & mask_));
-        rseq_ += (strlen(msg) + 1);
-        return msg;
-    }
-
-    size_t readable() const {
-        return (wseq_ - rseq_);
-    }
-
-    size_t writable() const {
-        return buffer_.size() - readable();
-    }
-
-private:
-    stream_buffer buffer_;
-    size_t        mask_;
-    size_t        wseq_;
-    size_t        rseq_;
-};
-
-class spsc_queue {
-public:
-    spsc_queue(size_t min_size)
+    basic_byte_stream(size_t min_size)
         : buffer_(min_size)
         , mask_(buffer_.size() - 1)
         , wwseq_(0)
@@ -164,50 +119,54 @@ private:
     }
 
 private:
-    stream_buffer      buffer_;
-    size_t             mask_;
+    stream_buffer buffer_;
+    size_t        mask_;
 
-    uint8_t            pad0_[64];
-    size_t             wwseq_; // writer's cached wseq
-    size_t             wrseq_; // writer's cached rseq
+    uint8_t       pad0_[64];
+    size_t        wwseq_; // writer's cached wseq
+    size_t        wrseq_; // writer's cached rseq
 
-    uint8_t            pad1_[64];
-    std::atomic_size_t wseq_;
+    uint8_t       pad1_[64];
+    Sequence      wseq_;
 
-    uint8_t            pad2_[64];
-    size_t             rwseq_; // reader's cached wseq
-    size_t             rrseq_; // reader's cached rseq
+    uint8_t       pad2_[64];
+    size_t        rwseq_; // reader's cached wseq
+    size_t        rrseq_; // reader's cached rseq
 
-    uint8_t            pad3_[64];
-    std::atomic_size_t rseq_;
+    uint8_t       pad3_[64];
+    Sequence      rseq_;
 };
 
-class spsc_queue_writer {
+using byte_stream = basic_byte_stream<size_t>;
+using atomic_byte_stream = basic_byte_stream<std::atomic_size_t>;
+
+template<typename ByteStream>
+class byte_stream_writer {
 public:
-    spsc_queue_writer(spsc_queue& queue)
-        : queue_(queue)
+    byte_stream_writer(ByteStream& stream)
+        : stream_(stream)
         , done_(false)
     {
-        queue_.write_begin();
+        stream_.write_begin();
     }
 
-    spsc_queue_writer(spsc_queue_writer&&) = delete;
-    spsc_queue_writer(const spsc_queue_writer&) = delete;
+    byte_stream_writer(byte_stream_writer&&) = delete;
+    byte_stream_writer(const byte_stream_writer&) = delete;
 
-    ~spsc_queue_writer() {
+    ~byte_stream_writer() {
         if (!done_) {
-            queue_.write_rollback();
+            stream_.write_rollback();
         }
     }
 
-    spsc_queue_writer& operator=(spsc_queue_writer&&) = delete;
-    spsc_queue_writer& operator=(const spsc_queue_writer&) = delete;
+    byte_stream_writer& operator=(byte_stream_writer&&) = delete;
+    byte_stream_writer& operator=(const byte_stream_writer&) = delete;
 
     template<typename T>
     void write(const T& val) {
         assert(!done_);
 
-        void* buf = queue_.write<sizeof(val)>();
+        void* buf = stream_.write<sizeof(val)>();
         if (!buf) {
             throw std::runtime_error("write failed");
         }
@@ -218,7 +177,7 @@ public:
     void write(const void* src_buf, size_t len) {
         assert(!done_);
 
-        void* dst_buf = queue_.write(len);
+        void* dst_buf = stream_.write(len);
         if (!dst_buf) {
             throw std::runtime_error("write failed");
         }
@@ -228,39 +187,40 @@ public:
 
     void commit() {
         assert(!done_);
-        queue_.write_commit();
+        stream_.write_commit();
         done_ = true;
     }
 
 private:
-    spsc_queue& queue_;
+    ByteStream& stream_;
     bool        done_;
 };
 
-class spsc_queue_reader {
+template<typename ByteStream>
+class byte_stream_reader {
 public:
-    spsc_queue_reader(spsc_queue& queue)
-        : queue_(queue)
+    byte_stream_reader(ByteStream& stream)
+        : stream_(stream)
         , done_(false)
     {
-        queue_.read_begin();
+        stream_.read_begin();
     }
 
-    spsc_queue_reader(spsc_queue_reader&&) = delete;
-    spsc_queue_reader(const spsc_queue_reader&) = delete;
+    byte_stream_reader(byte_stream_reader&&) = delete;
+    byte_stream_reader(const byte_stream_reader&) = delete;
 
-    ~spsc_queue_reader() {
+    ~byte_stream_reader() {
         if (!done_) {
-            queue_.read_rollback();
+            stream_.read_rollback();
         }
     }
 
-    spsc_queue_reader& operator=(spsc_queue_reader&&) = delete;
-    spsc_queue_reader& operator=(const spsc_queue_reader&) = delete;
+    byte_stream_reader& operator=(byte_stream_reader&&) = delete;
+    byte_stream_reader& operator=(const byte_stream_reader&) = delete;
 
     template<typename T>
     bool try_read(T& val) {
-        const void* buf = queue_.read<sizeof(val)>();
+        const void* buf = stream_.read<sizeof(val)>();
         if (!buf) {
             return false;
         }
@@ -272,7 +232,7 @@ public:
     template<typename T>
     T read() {
         T val;
-        const void* buf = queue_.read(sizeof(val));
+        const void* buf = stream_.read(sizeof(val));
         if (!buf) {
             throw std::runtime_error("read failed");
         }
@@ -283,35 +243,32 @@ public:
 
     void commit() {
         assert(!done_);
-        queue_.read_commit();
+        stream_.read_commit();
         done_ = true;
     }
 
 private:
-    spsc_queue& queue_;
+    ByteStream& stream_;
     bool        done_;
-    const void* buf_;
-    size_t      len_;
-    size_t      off_;
 };
 
 }
 
 int main(int argc, const char** argv) {
     try {
-        snw::spsc_queue queue(1 << 16);
+        snw::byte_stream stream(1 << 16);
         std::vector<char> str;
 
         for (int j = 0; j < (1 << 20); ++j) {
             {
-                snw::spsc_queue_writer writer(queue);
+                snw::byte_stream_writer<snw::byte_stream> writer(stream);
                 for (char c: "hello, world") {
                     writer.write(c);
                 }
                 writer.commit();
             }
             {
-                snw::spsc_queue_reader reader(queue);
+                snw::byte_stream_reader<snw::byte_stream> reader(stream);
 
                 char c;
                 str.clear();
