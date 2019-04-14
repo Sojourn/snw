@@ -7,6 +7,7 @@ set(SNW_HDRS
     stream_buffer.h
     byte_stream.h
     message_stream.h
+    message_stream.hpp
 )
 
 set(SNW_LIBS
