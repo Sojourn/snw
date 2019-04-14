@@ -6,6 +6,7 @@ set(SNW_HDRS
     snw_stream.h
     stream_buffer.h
     byte_stream.h
+    byte_stream.hpp
     message_stream.h
     message_stream.hpp
 )

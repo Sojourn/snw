@@ -11,100 +11,37 @@ namespace snw {
 template<typename Sequence>
 class basic_byte_stream {
 public:
-    basic_byte_stream(size_t min_size)
-        : buffer_(min_size)
-        , mask_(buffer_.size() - 1)
-        , wwseq_(0)
-        , wrseq_(0)
-        , wseq_(0)
-        , rwseq_(0)
-        , rrseq_(0)
-        , rseq_(0)
-    {
-        memset(pad0_, 0, sizeof(pad0_));
-        memset(pad1_, 0, sizeof(pad1_));
-        memset(pad2_, 0, sizeof(pad2_));
-        memset(pad3_, 0, sizeof(pad3_));
-    }
+    basic_byte_stream(size_t min_size);
+    basic_byte_stream(basic_byte_stream&&) = delete;
+    basic_byte_stream(const basic_byte_stream&) = delete;
 
-    void write_begin() {
-        wrseq_ = rseq_;
-    }
+    basic_byte_stream& operator=(basic_byte_stream&&) = delete;
+    basic_byte_stream& operator=(const basic_byte_stream&) = delete;
 
-    size_t writable() const {
-        return buffer_.size() - (wwseq_ - wrseq_);
-    }
+public:
+    size_t writable() const;
+
+    void write_begin();
+    void write_commit();
+    void write_rollback();
 
     template<size_t len>
-    void* write() {
-        if (writable() < len) {
-            return nullptr;
-        }
+    void* write();
+    void* write(size_t len);
 
-        void* buf = deref(wwseq_);
-        wwseq_ += len;
-        return buf;
-    }
+public:
+    size_t readable() const;
 
-    void* write(size_t len) {
-        if (writable() < len) {
-            return nullptr;
-        }
-
-        void* buf = deref(wwseq_);
-        wwseq_ += len;
-        return buf;
-    }
-
-    void write_commit() {
-        wseq_ = wwseq_;
-    }
-
-    void write_rollback() {
-        wwseq_ = wseq_;
-    }
-
-    void read_begin() {
-        rwseq_ = wseq_;
-    }
-
-    size_t readable() const {
-        return rwseq_ - rrseq_;
-    }
+    void read_begin();
+    void read_commit();
+    void read_rollback();
 
     template<size_t len>
-    void* read() {
-        if (readable() < len) {
-            return nullptr;
-        }
-
-        void* buf = deref(rrseq_);
-        rrseq_ += len;
-        return buf;
-    }
-
-    void* read(size_t len) {
-        if (readable() < len) {
-            return nullptr;
-        }
-
-        void* buf = deref(rrseq_);
-        rrseq_ += len;
-        return buf;
-    }
-
-    void read_commit() {
-        rseq_ = rrseq_;
-    }
-
-    void read_rollback() {
-        rrseq_ = rseq_;
-    }
+    void* read();
+    void* read(size_t len);
 
 private:
-    void* deref(size_t seq) {
-        return &buffer_.data()[seq & mask_];
-    }
+    void* deref(size_t seq);
 
 private:
     stream_buffer buffer_;
@@ -129,3 +66,5 @@ using byte_stream = basic_byte_stream<size_t>;
 using atomic_byte_stream = basic_byte_stream<std::atomic_size_t>;
 
 }
+
+#include "byte_stream.hpp"
