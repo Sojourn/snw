@@ -3,6 +3,7 @@
 #include <limits>
 #include <string>
 #include <atomic>
+#include <memory>
 #include <stdexcept>
 #include <cstdio>
 #include <cstddef>
@@ -13,6 +14,8 @@
 #include <unistd.h>
 
 #include "stream_buffer.h"
+#include "align.h"
+#include "varchar.h"
 
 namespace snw {
 
@@ -81,22 +84,22 @@ public:
     }
 
     template<size_t len>
-    const void* read() {
+    void* read() {
         if (readable() < len) {
             return nullptr;
         }
 
-        const void* buf = deref(rrseq_);
+        void* buf = deref(rrseq_);
         rrseq_ += len;
         return buf;
     }
 
-    const void* read(size_t len) {
+    void* read(size_t len) {
         if (readable() < len) {
             return nullptr;
         }
 
-        const void* buf = deref(rrseq_);
+        void* buf = deref(rrseq_);
         rrseq_ += len;
         return buf;
     }
@@ -111,10 +114,6 @@ public:
 
 private:
     void* deref(size_t seq) {
-        return &buffer_.data()[seq & mask_];
-    }
-
-    const void* deref(size_t seq) const {
         return &buffer_.data()[seq & mask_];
     }
 
@@ -140,151 +139,135 @@ private:
 using byte_stream = basic_byte_stream<size_t>;
 using atomic_byte_stream = basic_byte_stream<std::atomic_size_t>;
 
-template<typename ByteStream>
-class byte_stream_writer {
+template<typename MessageBase, typename Stream>
+class basic_message_stream {
 public:
-    byte_stream_writer(ByteStream& stream)
-        : stream_(stream)
-        , done_(false)
+    basic_message_stream(size_t min_size)
+        : stream_(min_size)
     {
-        stream_.write_begin();
     }
 
-    byte_stream_writer(byte_stream_writer&&) = delete;
-    byte_stream_writer(const byte_stream_writer&) = delete;
-
-    ~byte_stream_writer() {
-        if (!done_) {
-            stream_.write_rollback();
-        }
-    }
-
-    byte_stream_writer& operator=(byte_stream_writer&&) = delete;
-    byte_stream_writer& operator=(const byte_stream_writer&) = delete;
-
-    template<typename T>
-    void write(const T& val) {
-        assert(!done_);
-
-        void* buf = stream_.write<sizeof(val)>();
-        if (!buf) {
-            throw std::runtime_error("write failed");
-        }
-
-        memcpy(buf, &val, sizeof(val));
-    }
-
-    void write(const void* src_buf, size_t len) {
-        assert(!done_);
-
-        void* dst_buf = stream_.write(len);
-        if (!dst_buf) {
-            throw std::runtime_error("write failed");
-        }
-
-        memcpy(dst_buf, src_buf, len);
-    }
-
-    void commit() {
-        assert(!done_);
-        stream_.write_commit();
-        done_ = true;
-    }
-
-private:
-    ByteStream& stream_;
-    bool        done_;
-};
-
-template<typename ByteStream>
-class byte_stream_reader {
-public:
-    byte_stream_reader(ByteStream& stream)
-        : stream_(stream)
-        , done_(false)
-    {
+    template<typename MessageHandler>
+    size_t read(MessageHandler&& handler, size_t max_cnt = 0) {
         stream_.read_begin();
+
+        size_t cnt = 0;
+        for (; cnt <= (max_cnt - 1); ++cnt) {
+            size_t len;
+            {
+                const void* ptr = stream_.template read<sizeof(len)>();
+                if (!ptr) {
+                    stream_.read_rollback();
+                    return cnt;
+                }
+
+                memcpy(&len, ptr, sizeof(len));
+            }
+
+            {
+                const void* ptr = stream_.read(len);
+                assert(ptr);
+
+                try {
+                    const MessageBase& message = *reinterpret_cast<const MessageBase*>(ptr);
+                    handler(message);
+                    message.~MessageBase();
+                }
+                catch (const std::exception &) {
+                    // FIXME: do we want to rollback or commit?
+                    stream_.read_rollback();
+                    throw;
+                }
+            }
+        }
+
+        stream_.read_commit();
+        return cnt;
     }
 
-    byte_stream_reader(byte_stream_reader&&) = delete;
-    byte_stream_reader(const byte_stream_reader&) = delete;
+    template<typename Message, typename... Args>
+    bool try_write(Args&&... args) {
+        stream_.write_begin();
 
-    ~byte_stream_reader() {
-        if (!done_) {
-            stream_.read_rollback();
-        }
-    }
+        // write message length
+        {
+            size_t len = sizeof(size_t) + align_up(sizeof(Message), alignof(size_t));
+            void* ptr = stream_.write<sizeof(len)>();
+            if (!ptr) {
+                stream_.write_rollback();
+                return false;
+            }
 
-    byte_stream_reader& operator=(byte_stream_reader&&) = delete;
-    byte_stream_reader& operator=(const byte_stream_reader&) = delete;
-
-    template<typename T>
-    bool try_read(T& val) {
-        const void* buf = stream_.read<sizeof(val)>();
-        if (!buf) {
-            return false;
+            memcpy(ptr, &len, sizeof(len));
         }
 
-        memcpy(&val, buf, sizeof(val));
+        // write message
+        {
+            void* ptr = stream_.write<sizeof(Message)>();
+            if (!ptr) {
+                stream_.write_rollback();
+                return false;
+            }
+
+            new(ptr) Message(std::forward<Args>(args)...);
+        }
+
+        stream_.write_commit();
         return true;
     }
 
-    template<typename T>
-    T read() {
-        T val;
-        const void* buf = stream_.read(sizeof(val));
-        if (!buf) {
-            throw std::runtime_error("read failed");
+    template<typename Message, typename... Args>
+    void write(Args&&... args) {
+        if (!try_write<Message>(std::forward<Args>(args)...)) {
+            throw std::runtime_error("write failed");
         }
-
-        memcpy(&val, buf, sizeof(val));
-        return val;
-    }
-
-    void commit() {
-        assert(!done_);
-        stream_.read_commit();
-        done_ = true;
     }
 
 private:
-    ByteStream& stream_;
-    bool        done_;
+    basic_message_stream(basic_message_stream&&) = delete;
+    basic_message_stream(const basic_message_stream&) = delete;
+    basic_message_stream& operator=(basic_message_stream&&) = delete;
+    basic_message_stream& operator=(const basic_message_stream&) = delete;
+
+    Stream stream_;
 };
+
+template<typename MessageBase>
+using message_stream = basic_message_stream<MessageBase, byte_stream>;
+
+template<typename MessageBase>
+using atomic_message_stream = basic_message_stream<MessageBase, atomic_byte_stream>;
 
 }
 
+struct msg_base {
+    virtual ~msg_base() {}
+};
+
+struct poke_msg : public msg_base {
+    snw::varchar<16>     sender;
+    snw::varchar<16>     target;
+    std::vector<uint8_t> appendage;
+
+    poke_msg(const char* sender, const char* target)
+        : sender(sender)
+        , target(target)
+    {}
+
+    virtual ~poke_msg() {}
+};
+
 int main(int argc, const char** argv) {
-    try {
-        snw::byte_stream stream(1 << 16);
-        std::vector<char> str;
+    snw::message_stream<msg_base> stream(1 << 16);
 
-        for (int j = 0; j < (1 << 20); ++j) {
-            {
-                snw::byte_stream_writer<snw::byte_stream> writer(stream);
-                for (char c: "hello, world") {
-                    writer.write(c);
-                }
-                writer.commit();
-            }
-            {
-                snw::byte_stream_reader<snw::byte_stream> reader(stream);
+    stream.write<poke_msg>("me", "you");
+    size_t cnt = stream.read([](const msg_base& base) {
+        const poke_msg& msg = static_cast<const poke_msg&>(base);
 
-                char c;
-                str.clear();
-                while (reader.try_read(c)) {
-                    str.push_back(c);
-                }
-                str.push_back('\n');
-                reader.commit();
-
-                write(1, str.data(), str.size());
-            }
-        }
-    }
-    catch (const std::exception& ex) {
-        std::cerr << ex.what() << std::endl;
-    }
+        std::cout << msg.sender << std::endl;
+        std::cout << msg.target << std::endl;
+    });
+    std::cout << cnt << std::endl;
 
     return 0;
 }
