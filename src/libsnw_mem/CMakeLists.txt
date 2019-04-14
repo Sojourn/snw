@@ -2,14 +2,12 @@ set(SNW_SRCS
     snw_mem.cpp
     page_list.cpp
     page_stack.cpp
-    stream_buffer.cpp
 )
 
 set(SNW_HDRS
     snw_mem.h
     page_list.h
     page_stack.h
-    stream_buffer.h
 )
 
 set(SNW_LIBS

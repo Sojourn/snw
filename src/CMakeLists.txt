@@ -1,4 +1,5 @@
 add_subdirectory(libsnw_util)
+add_subdirectory(libsnw_stream)
 add_subdirectory(libsnw_event)
 add_subdirectory(libsnw_mem)
 add_subdirectory(libsnw_lang)

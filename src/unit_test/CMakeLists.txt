@@ -9,10 +9,10 @@ set(SNW_SRCS
     t_util_find_type.cpp
     t_util_function.cpp
     t_util_varchar.cpp
+    t_stream_stream_buffer.cpp
     t_event_future.cpp
     t_mem_page_list.cpp
     t_mem_page_stack.cpp
-    t_mem_stream_buffer.cpp
     t_lang_text_reader.cpp
     t_lang_lexer.cpp
 )
@@ -23,6 +23,7 @@ set(SNW_HDRS
 
 set(SNW_LIBS
     snw_util
+    snw_stream
     snw_event
     snw_mem
     snw_lang

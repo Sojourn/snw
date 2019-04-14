@@ -7,6 +7,7 @@ set(SNW_HDRS
 
 set(SNW_LIBS
     snw_util
+    snw_stream
     snw_event
     snw_mem
     snw_lang
