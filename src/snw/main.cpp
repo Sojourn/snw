@@ -157,8 +157,7 @@ public:
             {
                 const void* ptr = stream_.template read<sizeof(len)>();
                 if (!ptr) {
-                    stream_.read_rollback();
-                    return cnt;
+                    break;
                 }
 
                 memcpy(&len, ptr, sizeof(len));
@@ -168,14 +167,14 @@ public:
                 const void* ptr = stream_.read(len);
                 assert(ptr);
 
+                const MessageBase& message = *reinterpret_cast<const MessageBase*>(ptr);
                 try {
-                    const MessageBase& message = *reinterpret_cast<const MessageBase*>(ptr);
                     handler(message);
-                    message.~MessageBase();
+                    message.~MessageBase(); // better not throw...
                 }
                 catch (const std::exception &) {
-                    // FIXME: do we want to rollback or commit?
-                    stream_.read_rollback();
+                    message.~MessageBase(); // better not throw...
+                    stream_.read_commit();
                     throw;
                 }
             }
@@ -187,11 +186,13 @@ public:
 
     template<typename Message, typename... Args>
     bool try_write(Args&&... args) {
+        static constexpr size_t msg_len = align_up(sizeof(Message), alignof(size_t));
+
         stream_.write_begin();
 
         // write message length
         {
-            size_t len = sizeof(size_t) + align_up(sizeof(Message), alignof(size_t));
+            size_t len = msg_len;
             void* ptr = stream_.write<sizeof(len)>();
             if (!ptr) {
                 stream_.write_rollback();
@@ -203,7 +204,7 @@ public:
 
         // write message
         {
-            void* ptr = stream_.write<sizeof(Message)>();
+            void* ptr = stream_.write<msg_len>();
             if (!ptr) {
                 stream_.write_rollback();
                 return false;
@@ -260,14 +261,16 @@ struct poke_msg : public msg_base {
 int main(int argc, const char** argv) {
     snw::message_stream<msg_base> stream(1 << 16);
 
-    stream.write<poke_msg>("me", "you");
-    size_t cnt = stream.read([](const msg_base& base) {
-        const poke_msg& msg = static_cast<const poke_msg&>(base);
+    for (int i = 0; i < (1 << 20); ++i) {
+        stream.write<poke_msg>("me", "you");
+        size_t cnt = stream.read([](const msg_base& base) {
+            const poke_msg& msg = static_cast<const poke_msg&>(base);
 
-        std::cout << msg.sender << std::endl;
-        std::cout << msg.target << std::endl;
-    });
-    std::cout << cnt << std::endl;
+            // std::cout << msg.sender << std::endl;
+            // std::cout << msg.target << std::endl;
+        });
+        std::cout << cnt << std::endl;
+    }
 
     return 0;
 }
