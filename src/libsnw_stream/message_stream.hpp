@@ -31,10 +31,10 @@ size_t snw::basic_message_stream<MessageBase, Stream>::read(MessageHandler&& han
         }
 
         {
-            const void* ptr = stream_.read(len);
+            void* ptr = stream_.read(len);
             assert(ptr);
 
-            const MessageBase& message = *reinterpret_cast<const MessageBase*>(ptr);
+            MessageBase& message = *reinterpret_cast<MessageBase*>(ptr);
             try {
                 handler(message);
                 message.~MessageBase(); // better not throw...
