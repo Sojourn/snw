@@ -5,6 +5,7 @@
 
 namespace snw {
 
+// A non-allocating, movable, and mutable-only function implementation
 template<size_t capacity, typename>
 class basic_function;
 
@@ -15,6 +16,8 @@ class basic_function<capacity, Result(Args...)> {
     template<typename T>
     using member_function_ptr = Result(T::*)(Args...);
 public:
+    using result_type = Result;
+
     basic_function();
     basic_function(basic_function&& other);
     basic_function(const basic_function&) = delete;
@@ -35,10 +38,10 @@ public:
     template<typename Fn>
     basic_function& operator=(Fn&& fn);
 
-    explicit operator bool() const;
-
     template<typename... Args_>
     Result operator()(Args_&&... args);
+
+    explicit operator bool() const;
 
 private:
     class callable {
@@ -59,10 +62,10 @@ private:
     };
 
     template<typename Fn>
-    class functor : public callable {
+    class callable_functor : public callable {
     public:
         template<typename F>
-        functor(F&& fn)
+        callable_functor(F&& fn)
             : fn_(std::move(fn))
         {
         }
@@ -76,7 +79,7 @@ private:
         }
 
         void move_to(void* target) override {
-            new(target) functor<Fn>(std::move(fn_));
+            new(target) callable_functor<Fn>(std::move(fn_));
         }
 
     private:
@@ -84,9 +87,9 @@ private:
     };
 
     template<typename T>
-    class member_function : public callable {
+    class callable_member_function : public callable {
     public:
-        member_function(T* object, member_function_ptr<T> mem_fn)
+        callable_member_function(T* object, member_function_ptr<T> mem_fn)
             : object_(object)
             , mem_fn_(mem_fn)
         {
@@ -101,7 +104,7 @@ private:
         }
 
         void move_to(void* target) override {
-            new(target) member_function<T>(object_, mem_fn_);
+            new(target) callable_member_function<T>(object_, mem_fn_);
         }
 
     private:
@@ -118,6 +121,17 @@ private:
 private:
     alignas(alignment) uint8_t storage_[capacity];
 };
+
+// This should be large enough for most use cases. It is probably ok to define a
+// bespoke_function if there is a case where a larger closure capacity is useful.
+#if 0
+// TODO: check if we can use this in a future version of c++
+template<typename T, typename... Args>
+using function = basic_function<64, T(Args...)>;
+#else
+template<typename Signature>
+using function = basic_function<64, Signature>;
+#endif
 
 }
 

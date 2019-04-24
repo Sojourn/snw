@@ -3,6 +3,6 @@
 
 TEST_CASE("function") {
     SECTION("default construction") {
-        snw::basic_function<64, int(int)> fn;
+        snw::function<int(int)> fn;
     }
 }
