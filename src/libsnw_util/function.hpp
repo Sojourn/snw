@@ -4,6 +4,77 @@
 #include <cstddef>
 
 template<size_t capacity, typename Result, typename... Args>
+class snw::basic_function<capacity, Result(Args...)>::callable {
+public:
+    virtual ~callable() = default;
+
+    virtual bool is_null() const {
+        return true;
+    }
+
+    virtual Result apply(Args...) {
+        throw std::runtime_error("function is empty");
+    }
+
+    virtual void move_to(void* target) {
+        new(target) callable;
+    }
+};
+
+template<size_t capacity, typename Result, typename... Args>
+template<typename Fn>
+class snw::basic_function<capacity, Result(Args...)>::callable_functor : public callable {
+public:
+    template<typename F>
+    callable_functor(F&& fn)
+        : fn_(std::move(fn))
+    {
+    }
+
+    bool is_null() const override {
+        return false;
+    }
+
+    Result apply(Args... args) override {
+        return fn_(std::move(args)...);
+    }
+
+    void move_to(void* target) override {
+        new(target) callable_functor<Fn>(std::move(fn_));
+    }
+
+private:
+    Fn fn_;
+};
+
+template<size_t capacity, typename Result, typename... Args>
+template<typename T>
+class snw::basic_function<capacity, Result(Args...)>::callable_member_function : public callable {
+public:
+    callable_member_function(T* object, member_function_ptr<T> mem_fn)
+        : object_(object)
+        , mem_fn_(mem_fn)
+    {
+    }
+
+    bool is_null() const override {
+        return false;
+    }
+
+    Result apply(Args... args) override {
+        return (object_->*mem_fn_)(std::move(args)...);
+    }
+
+    void move_to(void* target) override {
+        new(target) callable_member_function<T>(object_, mem_fn_);
+    }
+
+private:
+    T*                     object_;
+    member_function_ptr<T> mem_fn_;
+};
+
+template<size_t capacity, typename Result, typename... Args>
 snw::basic_function<capacity, Result(Args...)>::basic_function() {
     create_callable<callable>();
 }
