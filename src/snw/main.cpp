@@ -111,7 +111,7 @@ private:
             return true;
         }
 
-        virtual Result apply(Args... args) {
+        virtual Result apply(Args...) {
             throw std::runtime_error("function is empty");
         }
 
@@ -134,7 +134,7 @@ private:
         }
 
         Result apply(Args... args) override {
-            return fn_(args...);
+            return fn_(std::move(args)...);
         }
 
         void move_to(void* target) override {
@@ -159,7 +159,7 @@ private:
         }
 
         Result apply(Args... args) override {
-            return (object_->*mem_fn_)(args...);
+            return (object_->*mem_fn_)(std::move(args)...);
         }
 
         void move_to(void* target) override {
@@ -215,6 +215,7 @@ struct foo {
     }
 
     char c(movable_arg) {
+        return 'c';
     }
 };
 
@@ -231,10 +232,10 @@ int main(int argc, const char** argv) {
         snw::basic_function<64, char(copyable_arg)> fn(&f, &foo::b);
         std::cout << fn(carg) << std::endl;
     }
-    // {
-    //     snw::basic_function<64, char(movable_arg)> fn(&f, &foo::c);
-    //     std::cout << fn(std::move(marg)) << std::endl;
-    // }
+    {
+        snw::basic_function<64, char(movable_arg)> fn(&f, &foo::c);
+        std::cout << fn(std::move(marg)) << std::endl;
+    }
 
     return 0;
 }
