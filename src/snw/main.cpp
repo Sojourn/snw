@@ -37,41 +37,46 @@ class basic_function;
 template<size_t capacity, typename Result, typename... Args>
 class basic_function<capacity, Result(Args...)> {
     static constexpr size_t alignment = alignof(void*);
+
+    template<typename T>
+    using member_function_ptr = Result(T::*)(Args...);
 public:
     basic_function() {
-        static_assert(sizeof(callable) <= capacity, "capacity is too small");
-        new(storage_) callable;
+        create_callable<callable>();
     }
 
     basic_function(basic_function&& other) {
         other.get_callable().move_to(storage_);
-        other.get_callable().~callable();
-
-        static_assert(sizeof(callable) <= capacity, "capacity is too small");
-        static_assert(alignof(callable) <= alignment, "alignment is too small");
-        new(other.storage_) callable;
+        other.destroy_callable();
+        other.create_callable<callable>();
     }
 
     basic_function(const basic_function&) = delete;
 
     template<typename Fn>
     basic_function(Fn&& fn) {
-        using functor_t = functor<typename std::decay<Fn>::type>;
-        static_assert(sizeof(functor_t) <= capacity, "capacity is too small");
-        new(storage_) functor_t(std::forward<Fn>(fn));
+        using callable_impl = functor<typename std::decay<Fn>::type>;
+
+        create_callable<callable_impl>(std::forward<Fn>(fn));
+    }
+
+    template<typename T>
+    basic_function(T* object, member_function_ptr<T> mem_fn) {
+        using callable_impl = member_function<T>;
+
+        create_callable<callable_impl>(object, mem_fn);
     }
 
     ~basic_function() {
-        get_callable().~callable();
+        destroy_callable();
     }
 
     basic_function& operator=(basic_function&& rhs) {
         if (this != &rhs) {
-            get_callable().~callable();
+            destroy_callable();
             rhs.get_callable().move_to(storage_);
-
-            static_assert(sizeof(callable) <= capacity, "callable is too small");
-            new(rhs.storage_) callable;
+            rhs.destroy_callable();
+            rhs.create_callable<callable>();
         }
 
         return *this;
@@ -82,15 +87,14 @@ public:
     // FIXME: this breaks operator=(const basic_function&) = delete
     template<typename Fn>
     basic_function& operator=(Fn&& fn) {
-        get_callable().~callable();
+        using callable_impl = functor<typename std::decay<Fn>::type>;
 
-        using functor_t = functor<typename std::decay<Fn>::type>;
-        static_assert(sizeof(functor_t) <= capacity, "capacity is too small");
-        new(storage_) functor_t(std::forward<Fn>(fn));
+        destroy_callable();
+        create_callable<callable_impl>(std::forward<Fn>(fn));
     }
 
     explicit operator bool() const {
-        return !get_callable().is_empty();
+        return !get_callable().is_null();
     }
 
     template<typename... Args_>
@@ -103,7 +107,7 @@ private:
     public:
         virtual ~callable() = default;
 
-        virtual bool is_empty() const {
+        virtual bool is_null() const {
             return true;
         }
 
@@ -125,7 +129,7 @@ private:
         {
         }
 
-        bool is_empty() const override {
+        bool is_null() const override {
             return false;
         }
 
@@ -141,8 +145,46 @@ private:
         Fn fn_;
     };
 
+    template<typename T>
+    class member_function : public callable {
+    public:
+        member_function(T* object, member_function_ptr<T> mem_fn)
+            : object_(object)
+            , mem_fn_(mem_fn)
+        {
+        }
+
+        bool is_null() const override {
+            return false;
+        }
+
+        Result apply(Args... args) override {
+            return (object_->*mem_fn_)(args...);
+        }
+
+        void move_to(void* target) override {
+            new(target) member_function<T>(object_, mem_fn_);
+        }
+
+    private:
+        T*                     object_;
+        member_function_ptr<T> mem_fn_;
+    };
+
     callable& get_callable() {
         return *reinterpret_cast<callable*>(storage_);
+    }
+
+    template<typename Callable, typename... Params>
+    void create_callable(Params&&... params) {
+        static_assert(sizeof(Callable) <= capacity, "capacity is too small");
+        static_assert(alignof(Callable) <= alignment, "alignment is too small");
+
+        new(storage_) Callable(std::forward<Params>(params)...);
+    }
+
+    void destroy_callable() {
+        get_callable().~callable();
     }
 
 private:
@@ -151,25 +193,48 @@ private:
 
 }
 
+struct copyable_arg {
+};
+
+struct movable_arg {
+    movable_arg() = default;
+    movable_arg(movable_arg&&) = default;
+    movable_arg(const movable_arg&) = delete;
+    ~movable_arg() = default;
+    movable_arg& operator=(movable_arg&&) = default;
+    movable_arg& operator=(const movable_arg&) = delete;
+};
+
+struct foo {
+    char a() {
+        return 'a';
+    }
+
+    char b(copyable_arg) {
+        return 'b';
+    }
+
+    char c(movable_arg) {
+    }
+};
+
 int main(int argc, const char** argv) {
-    int value = 13;
+    foo f;
+    copyable_arg carg;
+    movable_arg marg;
 
-    snw::basic_function<64, int()> fn([=]() mutable {
-        return value;
-    });
-
-    snw::basic_function<64, int()> fn2;
-
-    fn2 = std::move(fn);
-
-    std::cout << fn2() << std::endl;
-    try {
-        fn();
-        abort();
+    {
+        snw::basic_function<64, char()> fn(&f, &foo::a);
+        std::cout << fn() << std::endl;
     }
-    catch (const std::exception& ex) {
-        std::cout << ex.what() << std::endl;
+    {
+        snw::basic_function<64, char(copyable_arg)> fn(&f, &foo::b);
+        std::cout << fn(carg) << std::endl;
     }
+    // {
+    //     snw::basic_function<64, char(movable_arg)> fn(&f, &foo::c);
+    //     std::cout << fn(std::move(marg)) << std::endl;
+    // }
 
     return 0;
 }
