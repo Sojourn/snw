@@ -1,47 +1,88 @@
-template<typename Result, typename... Args>
-snw::function<Result(Args...)>::function() {
+#include <stdexcept>
+#include <type_traits>
+#include <cstdint>
+#include <cstddef>
+
+template<size_t capacity, typename Result, typename... Args>
+snw::basic_function<capacity, Result(Args...)>::basic_function() {
+    create_callable<callable>();
 }
 
-template<typename Result, typename... Args>
-snw::function<Result(Args...)>::function(function&& other)
-    : vtable_(other.vtable_)
-{
-    if(vtable_) {
-        vtable_->move(&storage_, &other.storage_);
-        other.vtable_->destroy(&other.storage_);
-        other.vtable_ = nullptr;
+template<size_t capacity, typename Result, typename... Args>
+snw::basic_function<capacity, Result(Args...)>::basic_function(basic_function&& other) {
+    other.get_callable().move_to(storage_);
+    other.destroy_callable();
+    other.create_callable<callable>();
+}
+
+template<size_t capacity, typename Result, typename... Args>
+template<typename Fn>
+snw::basic_function<capacity, Result(Args...)>::basic_function(Fn&& fn) {
+    using callable_impl = functor<typename std::decay<Fn>::type>;
+
+    create_callable<callable_impl>(std::forward<Fn>(fn));
+}
+
+template<size_t capacity, typename Result, typename... Args>
+template<typename T>
+snw::basic_function<capacity, Result(Args...)>::basic_function(T* object, member_function_ptr<T> mem_fn) {
+    using callable_impl = member_function<T>;
+
+    create_callable<callable_impl>(object, mem_fn);
+}
+
+template<size_t capacity, typename Result, typename... Args>
+snw::basic_function<capacity, Result(Args...)>::~basic_function() {
+    destroy_callable();
+}
+
+template<size_t capacity, typename Result, typename... Args>
+auto snw::basic_function<capacity, Result(Args...)>::operator=(basic_function&& rhs) -> basic_function& {
+    if (this != &rhs) {
+        destroy_callable();
+        rhs.get_callable().move_to(storage_);
+        rhs.destroy_callable();
+        rhs.create_callable<callable>();
     }
+
+    return *this;
 }
 
-template<typename Result, typename... Args>
-snw::function<Result(Args...)>::function(Result(*fn)(Args...))
-    : vtable_(nullptr)
-{
-#if 0
-    struct storage_impl {
-        Result(*fn)(Args...);
-    };
-    static_assert(sizeof(storage_impl) <= sizeof(storage_), )
+template<size_t capacity, typename Result, typename... Args>
+template<typename Fn>
+auto snw::basic_function<capacity, Result(Args...)>::operator=(Fn&& fn) -> basic_function& {
+    using callable_impl = functor<typename std::decay<Fn>::type>;
 
-    static const vtable *vtable_impl = {
-        [](void* raw_self) {
-            auto self = reinterpret_cast<storage_impl*>(raw_self);
-        },
-        [](void* raw_self) {
-            auto self = reinterpret_cast<storage_impl*>(raw_self);
-        },
-        [](void* raw_self, void* raw_other) {
-            auto self = reinterpret_cast<storage_impl*>(raw_self);
-            auto other = reinterpret_cast<storage_impl*>(raw_other);
-        }
-    };
-
-    vtable_ = &vtable_impl;
-    auto self = reinterpret_cast<storage_impl*>(storage_);
-    self->fn = fn;
-#endif
+    destroy_callable();
+    create_callable<callable_impl>(std::forward<Fn>(fn));
 }
 
-template<typename Result, typename... Args>
-snw::function<Result(Args...)>::~function() {
+template<size_t capacity, typename Result, typename... Args>
+snw::basic_function<capacity, Result(Args...)>::operator bool() const {
+    return !get_callable().is_null();
+}
+
+template<size_t capacity, typename Result, typename... Args>
+template<typename... Args_>
+Result snw::basic_function<capacity, Result(Args...)>::operator()(Args_&&... args) {
+    return get_callable().apply(std::forward<Args_>(args)...);
+}
+
+template<size_t capacity, typename Result, typename... Args>
+template<typename CallableImpl, typename... Params>
+void snw::basic_function<capacity, Result(Args...)>::create_callable(Params&&... params) {
+    static_assert(sizeof(CallableImpl) <= capacity, "capacity is too small");
+    static_assert(alignof(CallableImpl) <= alignment, "alignment is too small");
+
+    new(storage_) CallableImpl(std::forward<Params>(params)...);
+}
+
+template<size_t capacity, typename Result, typename... Args>
+void snw::basic_function<capacity, Result(Args...)>::destroy_callable() {
+    get_callable().~callable();
+}
+
+template<size_t capacity, typename Result, typename... Args>
+auto snw::basic_function<capacity, Result(Args...)>::get_callable() -> callable& {
+    return *reinterpret_cast<callable*>(storage_);
 }

@@ -20,7 +20,9 @@
 #include "align.h"
 #include "varchar.h"
 #include "intrusive_list.h"
+#include "function.h"
 
+#if 0
 namespace snw {
 
 #if __cpp_lib_is_invocable
@@ -30,6 +32,7 @@ namespace snw {
     template<class F, class... Args>
     using invoke_result = std::result_of<F(Args...)>;
 #endif
+
 
 template<size_t capacity, typename>
 class basic_function;
@@ -192,6 +195,8 @@ private:
 };
 
 }
+
+#endif
 
 struct copyable_arg {
 };
