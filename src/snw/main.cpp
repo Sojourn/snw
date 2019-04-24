@@ -7,6 +7,7 @@
 #include <memory>
 #include <thread>
 #include <stdexcept>
+#include <type_traits>
 #include <cstdio>
 #include <cstddef>
 #include <cstdint>
@@ -18,166 +19,157 @@
 #include "snw_stream.h"
 #include "align.h"
 #include "varchar.h"
+#include "intrusive_list.h"
 
-enum class msg_type {
-    login,
-    logout,
-    heartbeat,
+namespace snw {
 
-    open_doc,
-    create_doc,
-    close_doc,
-};
+#if __cpp_lib_is_invocable
+    template<class F, class... Args>
+    using invoke_result = std::invoke_result<F, Args...>;
+#else
+    template<class F, class... Args>
+    using invoke_result = std::result_of<F(Args...)>;
+#endif
 
-struct msg_base {
-    msg_type type;
+template<size_t capacity, typename>
+class basic_function;
 
-    msg_base(msg_type type): type(type) {}
-    virtual ~msg_base() {}
-};
-
-struct login_msg : public msg_base {
-    snw::varchar<16> db_name;
-    snw::varchar<16> app_name;
-    snw::varchar<16> user_name;
-    bool             read_only;
-
-    login_msg(const char* db_name, const char* app_name, const char* user_name, bool read_only)
-        : msg_base(msg_type::login)
-        , db_name(db_name)
-        , app_name(app_name)
-        , user_name(user_name)
-        , read_only(read_only)
-    {
-    }
-};
-
-struct logout_msg : public msg_base {
-    logout_msg()
-        : msg_base(msg_type::logout)
-    {}
-};
-
-struct heartbeat_msg : public msg_base {
-    heartbeat_msg()
-        : msg_base(msg_type::heartbeat)
-    {}
-};
-
-struct open_doc_msg : public msg_base {
-    snw::varchar<256> path;
-
-    open_doc_msg(const char* path)
-        : msg_base(msg_type::open_doc)
-        , path(path)
-    {}
-};
-
-struct create_doc_msg : public msg_base {
-    create_doc_msg()
-        : msg_base(msg_type::create_doc)
-    {}
-};
-
-struct close_doc_msg : public msg_base {
-    close_doc_msg()
-        : msg_base(msg_type::close_doc)
-    {}
-};
-
-using msg_stream = snw::atomic_message_stream<msg_base>;
-
-class doc_server {
+template<size_t capacity, typename Result, typename... Args>
+class basic_function<capacity, Result(Args...)> {
+    static constexpr size_t alignment = alignof(void*);
 public:
-    doc_server(msg_stream& rx_stream, msg_stream& tx_stream)
-        : rx_stream_(rx_stream)
-        , tx_stream_(tx_stream)
-        , stop_(false)
-    {
-        thread_ = std::thread(&doc_server::run, this);
+    basic_function() {
+        static_assert(sizeof(callable) <= capacity, "capacity is too small");
+        new(storage_) callable;
     }
 
-    ~doc_server() {
-        stop_ = true;
-        thread_.join();
+    basic_function(basic_function&& other) {
+        other.get_callable().move_to(storage_);
+        other.get_callable().~callable();
+
+        static_assert(sizeof(callable) <= capacity, "capacity is too small");
+        static_assert(alignof(callable) <= alignment, "alignment is too small");
+        new(other.storage_) callable;
     }
 
-private:
-    void run() {
-        while (!stop_) {
-            rx_stream_.read([&](msg_base& base) {
-                switch (base.type) {
-                case msg_type::login:
-                    handle_login(static_cast<login_msg&>(base));
-                    break;
+    basic_function(const basic_function&) = delete;
 
-                case msg_type::logout:
-                    handle_logout(static_cast<logout_msg&>(base));
-                    break;
+    template<typename Fn>
+    basic_function(Fn&& fn) {
+        using functor_t = functor<typename std::decay<Fn>::type>;
+        static_assert(sizeof(functor_t) <= capacity, "capacity is too small");
+        new(storage_) functor_t(std::forward<Fn>(fn));
+    }
 
-                case msg_type::heartbeat:
-                    handle_heartbeat(static_cast<heartbeat_msg&>(base));
-                    break;
+    ~basic_function() {
+        get_callable().~callable();
+    }
 
-                default:
-                    break;
-                }
-            });
+    basic_function& operator=(basic_function&& rhs) {
+        if (this != &rhs) {
+            get_callable().~callable();
+            rhs.get_callable().move_to(storage_);
+
+            static_assert(sizeof(callable) <= capacity, "callable is too small");
+            new(rhs.storage_) callable;
         }
+
+        return *this;
     }
 
-    void handle_login(login_msg& msg) {
-        std::cout << "login" << std::endl;
+    basic_function& operator=(const basic_function&) = delete;
+
+    // FIXME: this breaks operator=(const basic_function&) = delete
+    template<typename Fn>
+    basic_function& operator=(Fn&& fn) {
+        get_callable().~callable();
+
+        using functor_t = functor<typename std::decay<Fn>::type>;
+        static_assert(sizeof(functor_t) <= capacity, "capacity is too small");
+        new(storage_) functor_t(std::forward<Fn>(fn));
     }
 
-    void handle_logout(logout_msg& msg) {
-        std::cout << "logout" << std::endl;
+    explicit operator bool() const {
+        return !get_callable().is_empty();
     }
 
-    void handle_heartbeat(heartbeat_msg& msg) {
-        std::cout << "heartbeat" << std::endl;
-    }
-
-private:
-    msg_stream&      rx_stream_;
-    msg_stream&      tx_stream_;
-    std::thread      thread_;
-    std::atomic_bool stop_;
-};
-
-class doc_client {
-public:
-    doc_client(msg_stream& rx_stream, msg_stream& tx_stream)
-        : rx_stream_(rx_stream)
-        , tx_stream_(tx_stream)
-    {
-    }
-
-    void login(const char* db_name, const char* app_name, const char* user_name, bool read_only) {
-        tx_stream_.write<login_msg>(db_name, app_name, user_name, read_only);
-    }
-
-    void logout() {
-        tx_stream_.write<logout_msg>();
+    template<typename... Args_>
+    Result operator()(Args_&&... args) {
+        return get_callable().apply(std::forward<Args_>(args)...);
     }
 
 private:
-    msg_stream& rx_stream_;
-    msg_stream& tx_stream_;
+    class callable {
+    public:
+        virtual ~callable() = default;
+
+        virtual bool is_empty() const {
+            return true;
+        }
+
+        virtual Result apply(Args... args) {
+            throw std::runtime_error("function is empty");
+        }
+
+        virtual void move_to(void* target) {
+            new(target) callable;
+        }
+    };
+
+    template<typename Fn>
+    class functor : public callable {
+    public:
+        template<typename F>
+        functor(F&& fn)
+            : fn_(std::move(fn))
+        {
+        }
+
+        bool is_empty() const override {
+            return false;
+        }
+
+        Result apply(Args... args) override {
+            return fn_(args...);
+        }
+
+        void move_to(void* target) override {
+            new(target) functor<Fn>(std::move(fn_));
+        }
+
+    private:
+        Fn fn_;
+    };
+
+    callable& get_callable() {
+        return *reinterpret_cast<callable*>(storage_);
+    }
+
+private:
+    alignas(alignment) uint8_t storage_[capacity];
 };
+
+}
 
 int main(int argc, const char** argv) {
-    msg_stream s1(1 << 16);
-    msg_stream s2(1 << 16);
+    int value = 13;
 
-    doc_server server(s1, s2);
-    doc_client client(s2, s1);
+    snw::basic_function<64, int()> fn([=]() mutable {
+        return value;
+    });
 
-    client.login("snw", "test_client", "me", false);
+    snw::basic_function<64, int()> fn2;
 
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    fn2 = std::move(fn);
 
-    client.logout();
+    std::cout << fn2() << std::endl;
+    try {
+        fn();
+        abort();
+    }
+    catch (const std::exception& ex) {
+        std::cout << ex.what() << std::endl;
+    }
 
     return 0;
 }
