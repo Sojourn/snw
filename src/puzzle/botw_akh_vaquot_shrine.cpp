@@ -42,10 +42,13 @@ private:
     uint32_t data_;
 };
 
+// A class that can efficiently determines which board positions are set
+// for a given fan pointing in a given direction
 template<int width, int height, int fanCount>
 class Spinning {
 public:
     Spinning(const Point(&fanPositions)[fanCount]) {
+        // precompute which board positions are set for each fan pointing in each direction
         for (int i = 0; i < fanCount; ++i) {
             Point fanPosition = fanPositions[i];
             {
@@ -75,8 +78,9 @@ public:
         }
     }
 
-    const Board<width, height>& get(int fan, int state) const {
-        int dir = (state >> (fan * 2)) & 3;
+    const Board<width, height>& get(int fan, int boardState) const {
+        // extract the 2 bits that represent which direction this fan is facing in this boardstate
+        int dir = (boardState >> (fan * 2)) & 3;
         return boardCache_[fan][dir];
     }
 
@@ -99,19 +103,23 @@ int main(int argc, const char** argv) {
     static constexpr int width = 5;
 
     Spinning<width, height, fanCount> spinning(fans);
+
     Board<width, height> solution;
     solution.set();
 
-    for (int state = 0; state < (1 << (2 * fanCount)); ++state) {
+    // brute force board states until we find one in which all positions are set
+    for (int boardState = 0; boardState < (1 << (2 * fanCount)); ++boardState) {
         Board<width, height> board;
         for (int fan = 0; fan < fanCount; ++fan) {
-            board = board | spinning.get(fan, state);
+            board = board | spinning.get(fan, boardState);
         }
+
+        // print the solution and exit, if we've found it
         if (board == solution) {
             std::cout << "found solution" << std::endl;
             for (int fan = 0; fan < fanCount; ++fan) {
                 std::cout << '(' << fans[fan].x << ", " << fans[fan].y << "): ";
-                switch ((state >> (fan * 2)) & 3) {
+                switch ((boardState >> (fan * 2)) & 3) {
                 case 0:
                     std::cout << "north" << std::endl;
                     break;
