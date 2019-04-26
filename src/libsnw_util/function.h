@@ -38,8 +38,7 @@ public:
     template<typename Fn>
     basic_function& operator=(Fn&& fn);
 
-    template<typename... Args_>
-    Result operator()(Args_&&... args);
+    Result operator()(Args... args);
 
     explicit operator bool() const;
 

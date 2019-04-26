@@ -27,7 +27,7 @@ class snw::basic_function<capacity, Result(Args...)>::callable_functor : public 
 public:
     template<typename F>
     callable_functor(F&& fn)
-        : fn_(std::move(fn))
+        : fn_(std::forward<F>(fn))
     {
     }
 
@@ -36,7 +36,7 @@ public:
     }
 
     Result apply(Args... args) override {
-        return fn_(std::move(args)...);
+        return fn_(std::forward<Args>(args)...);
     }
 
     void move_to(void* target) override {
@@ -62,7 +62,7 @@ public:
     }
 
     Result apply(Args... args) override {
-        return (object_->*mem_fn_)(std::move(args)...);
+        return (object_->*mem_fn_)(std::forward<Args>(args)...);
     }
 
     void move_to(void* target) override {
@@ -129,9 +129,8 @@ auto snw::basic_function<capacity, Result(Args...)>::operator=(Fn&& fn) -> basic
 }
 
 template<size_t capacity, typename Result, typename... Args>
-template<typename... Args_>
-Result snw::basic_function<capacity, Result(Args...)>::operator()(Args_&&... args) {
-    return get_callable().apply(std::forward<Args_>(args)...);
+Result snw::basic_function<capacity, Result(Args...)>::operator()(Args... args) {
+    return get_callable().apply(std::forward<Args>(args)...);
 }
 
 template<size_t capacity, typename Result, typename... Args>
