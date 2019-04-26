@@ -56,6 +56,7 @@ private:
     void create_callable(Params&&... params);
     void destroy_callable();
     callable& get_callable();
+    const callable& get_callable() const;
 
 private:
     alignas(alignment) uint8_t storage_[capacity];

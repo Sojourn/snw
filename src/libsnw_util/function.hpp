@@ -157,3 +157,8 @@ template<size_t capacity, typename Result, typename... Args>
 auto snw::basic_function<capacity, Result(Args...)>::get_callable() -> callable& {
     return *reinterpret_cast<callable*>(storage_);
 }
+
+template<size_t capacity, typename Result, typename... Args>
+auto snw::basic_function<capacity, Result(Args...)>::get_callable() const -> const callable& {
+    return *reinterpret_cast<const callable*>(storage_);
+}
