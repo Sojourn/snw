@@ -70,6 +70,22 @@ TEST_CASE("function") {
 
         CHECK(f2() == 1);
     }
+    SECTION("moving a movable closure") {
+        struct functor_t {
+            movable_arg arg;
+
+            functor_t(): arg(7) {}
+
+            int operator()() { return arg.value; }
+        } functor;
+
+        snw::function<int()> f1(std::move(functor));
+        snw::function<int()> f2(std::move(f1));
+
+        CHECK(!f1);
+        CHECK(f2);
+        CHECK(f2() == 7);
+    }
     SECTION("copying and moving arguments") {
         foobar fb;
 
@@ -150,5 +166,37 @@ TEST_CASE("function") {
             movable_arg arg(23);
             CHECK(fn(arg) == 23);
         }
+    }
+    SECTION("capture by value") {
+        int x = 5;
+
+        snw::function<int()> fn = [=]() {
+            return x;
+        };
+
+        x = 7;
+        CHECK(fn() == 5);
+    }
+    SECTION("capture by reference") {
+        int x = 5;
+
+        snw::function<int()> fn = [&]() {
+            return x;
+        };
+
+        x = 7;
+        CHECK(fn() == 7);
+    }
+    SECTION("mutable closure") {
+        int value = 0;
+
+        snw::function<int()> counter = [=]() mutable {
+            return value++;
+        };
+
+        CHECK(counter() == 0);
+        CHECK(counter() == 1);
+        CHECK(counter() == 2);
+        CHECK(counter() == 3);
     }
 }
