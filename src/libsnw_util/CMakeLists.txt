@@ -20,6 +20,7 @@ set(SNW_HDRS
     function.hpp
     varchar.h
     varchar.hpp
+    type_traits.h
 )
 
 add_library(snw_util ${SNW_SRCS} ${SNW_HDRS})
