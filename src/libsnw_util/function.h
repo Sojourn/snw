@@ -11,12 +11,11 @@ class basic_function;
 
 template<size_t capacity, typename Result, typename... Args>
 class basic_function<capacity, Result(Args...)> {
-    static constexpr size_t alignment = alignof(void*);
-
+public:
     template<typename T>
     using member_function_ptr = Result(T::*)(Args...);
-public:
     using result_type = Result;
+    static constexpr size_t alignment = alignof(void*);
 
     basic_function();
     basic_function(basic_function&& other);
