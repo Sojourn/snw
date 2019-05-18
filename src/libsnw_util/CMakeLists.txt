@@ -1,6 +1,7 @@
 set(SNW_SRCS
     snw_util.cpp
     dfa16_state_machine.cpp
+    slot_allocator.cpp
 )
 
 set(SNW_HDRS
@@ -21,6 +22,7 @@ set(SNW_HDRS
     varchar.h
     varchar.hpp
     type_traits.h
+    slot_allocator.h
 )
 
 add_library(snw_util ${SNW_SRCS} ${SNW_HDRS})
