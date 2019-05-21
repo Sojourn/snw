@@ -174,8 +174,9 @@ void snw::slot_allocator::deallocate(uint64_t slot) {
         int bit_offset = c.bit_offset();
         c.ascend();
 
-        level& level = levels_[height_ - i - 1];
-        node& node = level.first[c.tell()];
+        size_t depth = height_ - i - 1;
+        size_t node_index = c.tell();
+        node& node = levels_[depth].first[node_index];
 
         if (i == 0) {
             leaf_node& leaf = static_cast<leaf_node&>(node);
