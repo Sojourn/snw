@@ -56,6 +56,9 @@ private:
 
     bool is_leaf_level(size_t depth) const;
 
+    template<typename F>
+    void scan_node(int depth, uint64_t node_offset, F&& f) const;
+
 private:
     class cursor;
 

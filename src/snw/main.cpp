@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 10; ++i) {
         uint64_t slot;
         if (sa.allocate(&slot)) {
-            std::cout << slot << std::endl;
+            std::cout << "allocated: " << slot << std::endl;
         }
         else {
             std::cout << "allocation failed" << std::endl;
@@ -22,6 +22,10 @@ int main(int argc, char** argv) {
             sa.deallocate(slot - 1);
         }
     }
+
+    sa.scan([&](uint64_t slot) {
+        std::cout << "scanned: " << slot << std::endl;
+    });
 
     return 0;
 }
