@@ -9,13 +9,17 @@
 int main(int argc, char** argv) {
     snw::slot_allocator sa(1 << 20);
 
-    {
+    for (int i = 0; i < 10; ++i) {
         uint64_t slot;
         if (sa.allocate(&slot)) {
             std::cout << slot << std::endl;
         }
         else {
             std::cout << "allocation failed" << std::endl;
+        }
+
+        if (i && ((i % 7) == 0)) {
+            sa.deallocate(slot - 1);
         }
     }
 

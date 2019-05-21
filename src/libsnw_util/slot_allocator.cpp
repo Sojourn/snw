@@ -229,3 +229,18 @@ bool snw::slot_allocator::all(const uint64_t (&chunks)[node_chunk_count]) {
 bool snw::slot_allocator::none(const uint64_t (&chunks)[node_chunk_count]) {
     return !any(chunks);
 }
+
+snw::slot_allocator::branch_node::branch_node() {
+    for (uint64_t& chunk: any_live) {
+        chunk = std::numeric_limits<uint64_t>::min();
+    }
+    for (uint64_t& chunk: any_dead) {
+        chunk = std::numeric_limits<uint64_t>::max();
+    }
+}
+
+snw::slot_allocator::leaf_node::leaf_node() {
+    for (uint64_t& chunk: live) {
+        chunk = std::numeric_limits<uint64_t>::min();
+    }
+}

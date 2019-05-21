@@ -61,10 +61,14 @@ private:
     struct branch_node : node {
         uint64_t any_live[node_chunk_count]; // a mask of child nodes containing any allocated slots
         uint64_t any_dead[node_chunk_count]; // a mast of child nodes containing any deallocated slots
+
+        branch_node();
     };
 
     struct leaf_node : node {
         uint64_t live[node_chunk_count]; // a mask of allocated slots
+
+        leaf_node();
     };
 
     struct level {
