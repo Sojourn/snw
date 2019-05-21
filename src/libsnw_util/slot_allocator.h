@@ -51,6 +51,8 @@ private:
     static bool all(const uint64_t (&chunks)[node_chunk_count]);
     static bool none(const uint64_t (&chunks)[node_chunk_count]);
 
+    bool is_leaf_level(size_t depth) const;
+
 private:
     class cursor;
 

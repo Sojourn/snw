@@ -38,8 +38,8 @@ private:
     uint64_t index_;
 };
 
-snw::slot_allocator::slot_allocator(size_t min_capacity)
-    : capacity_(0)
+snw::slot_allocator::slot_allocator(size_t capacity)
+    : capacity_(capacity)
     , size_(0)
     , height_(0)
 {
@@ -84,7 +84,82 @@ snw::slot_allocator::slot_allocator(size_t min_capacity)
 }
 
 bool snw::slot_allocator::allocate(uint64_t* slot) {
-    return -1;
+    if (size() == capacity()) {
+        return false;
+    }
+
+    cursor c;
+
+    for (size_t depth = 0; depth < height_; ++depth) {
+        node& node = levels_[depth].first[c.tell()];
+
+        int chunk_offset = 0;
+        int bit_offset = 0;
+
+        if (is_leaf_level(depth)) {
+            leaf_node& leaf = static_cast<leaf_node&>(node);
+            for (; chunk_offset < node_chunk_count; ++chunk_offset) {
+                uint64_t& live_chunk = leaf.live[chunk_offset];
+                uint64_t dead_chunk = ~live_chunk;
+                if (dead_chunk) {
+                    bit_offset = count_trailing_zeros(dead_chunk);
+                    break;
+                }
+            }
+        }
+        else {
+            branch_node& branch = static_cast<branch_node&>(node);
+            for (; chunk_offset < node_chunk_count; ++chunk_offset) {
+                uint64_t& dead_chunk = branch.any_dead[chunk_offset];
+                if (dead_chunk) {
+                    bit_offset = count_trailing_zeros(dead_chunk);
+                    break;
+                }
+            }
+        }
+
+        assert(chunk_offset < node_chunk_count);
+        c.desend(chunk_offset, bit_offset);
+    }
+
+    *slot = c.tell();
+
+    bool any_live = false;
+    bool any_dead = false;
+
+    for (size_t i = 0; i < height_; ++i) {
+        int chunk_offset = c.chunk_offset();
+        int bit_offset = c.bit_offset();
+        c.ascend();
+
+        size_t depth = height_ - i - 1;
+        size_t node_index = c.tell();
+        node& node = levels_[depth].first[node_index];
+
+        if (is_leaf_level(depth)) {
+            leaf_node& leaf = static_cast<leaf_node&>(node);
+
+            assert(!test_bit(leaf.live[chunk_offset], bit_offset));
+            set_bit(leaf.live[chunk_offset], bit_offset);
+            any_live = true;
+            any_dead = !all(leaf.live);
+        }
+        else {
+            branch_node& branch = static_cast<branch_node&>(node);
+
+            if (any_live) {
+                set_bit(branch.any_live[chunk_offset], bit_offset);
+                any_live = true;
+            }
+
+            if (!any_dead) {
+                clear_bit(branch.any_dead[chunk_offset], bit_offset);
+                any_dead = none(branch.any_dead);
+            }
+        }
+    }
+
+    return true;
 }
 
 void snw::slot_allocator::deallocate(uint64_t slot) {
@@ -94,7 +169,7 @@ void snw::slot_allocator::deallocate(uint64_t slot) {
     bool any_dead = false;
 
     // TODO: detect if we can stop iteration early
-    for (size_t i = 0; (i < height_); ++i) {
+    for (size_t i = 0; i < height_; ++i) {
         int chunk_offset = c.chunk_offset();
         int bit_offset = c.bit_offset();
         c.ascend();
@@ -105,6 +180,7 @@ void snw::slot_allocator::deallocate(uint64_t slot) {
         if (i == 0) {
             leaf_node& leaf = static_cast<leaf_node&>(node);
 
+            assert(test_bit(leaf.live[chunk_offset], bit_offset));
             clear_bit(leaf.live[chunk_offset], bit_offset);
             any_live = any(leaf.live);
             any_dead = true;
@@ -123,6 +199,10 @@ void snw::slot_allocator::deallocate(uint64_t slot) {
             }
         }
     }
+}
+
+bool snw::slot_allocator::is_leaf_level(size_t depth) const {
+    return (depth == (height_ - 1));
 }
 
 bool snw::slot_allocator::any(const uint64_t (&chunks)[node_chunk_count]) {
