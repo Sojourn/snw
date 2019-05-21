@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <cstddef>
 
-#include "function.h"
+#include "bits.h"
 
 namespace snw {
 
@@ -18,6 +18,9 @@ public:
 
     // free a slot
     void deallocate(uint64_t slot);
+
+    template<typename F>
+    void scan(F&& f) const;
 
     size_t size() const {
         return size_;
@@ -86,3 +89,5 @@ private:
 };
 
 }
+
+#include "slot_allocator.hpp"

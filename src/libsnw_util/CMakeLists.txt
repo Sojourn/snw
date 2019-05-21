@@ -23,6 +23,7 @@ set(SNW_HDRS
     varchar.hpp
     type_traits.h
     slot_allocator.h
+    slot_allocator.hpp
 )
 
 add_library(snw_util ${SNW_SRCS} ${SNW_HDRS})
