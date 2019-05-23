@@ -47,8 +47,8 @@ inline void snw::slot_allocator::scan_node(int depth, uint64_t node_offset, F&& 
         leaf_node& leaf = static_cast<leaf_node&>(node);
 
         for (int chunk_offset = 0; chunk_offset < node_chunk_count; ++chunk_offset) {
-            uint64_t chunk = leaf.live[chunk_offset];
-            for_each_set_bit(chunk, [&](int bit_offset) {
+            const uint64_t& chunk = leaf.live[chunk_offset];
+            for_each_set_bit_volatile(chunk, [&](int bit_offset) {
                 cursor.desend(chunk_offset, bit_offset);
                 f(cursor.tell());
                 cursor.ascend();
@@ -59,8 +59,8 @@ inline void snw::slot_allocator::scan_node(int depth, uint64_t node_offset, F&& 
         branch_node& branch = static_cast<branch_node&>(node);
 
         for (int chunk_offset = 0; chunk_offset < node_chunk_count; ++chunk_offset) {
-            uint64_t chunk = branch.any_live[chunk_offset];
-            for_each_set_bit(chunk, [&](int bit_offset) {
+            const uint64_t& chunk = branch.any_live[chunk_offset];
+            for_each_set_bit_volatile(chunk, [&](int bit_offset) {
                 cursor.desend(chunk_offset, bit_offset);
                 scan_node(depth + 1, cursor.tell(), f);
                 cursor.ascend();

@@ -81,4 +81,14 @@ inline void for_each_set_bit(uint64_t value, F&& f) {
     }
 }
 
+template<typename F>
+inline void for_each_set_bit_volatile(const uint64_t& value, F&& f) {
+    uint64_t mask = ~static_cast<uint64_t>(0);
+    while (uint64_t masked_value = (value & mask)) {
+        int index = count_trailing_zeros(masked_value);
+        f(index);
+        mask = ~((static_cast<uint64_t>(1) << (index + 1)) - 1);
+    }
+}
+
 }
