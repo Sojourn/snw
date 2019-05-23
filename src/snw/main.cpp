@@ -32,6 +32,7 @@ public:
 
     void remove(int32_t row_id) {
         row& row = rows_[row_id];
+        row.nonce = 0;
         reinterpret_cast<T*>(row.data)->~T();
         row_allocator_.deallocate(row_id);
         ++nonce_;
@@ -53,8 +54,8 @@ public:
         uint64_t nonce = nonce_;
         row_allocator_.scan([&](uint64_t row_id) {
             const row& row = rows_[row_id];
-            if (row.nonce <= nonce) {
-                f(*reinterpret_cast<const T*>(row.data));
+            if ((0 < row.nonce) && (row.nonce <= nonce)) {
+                f(static_cast<int32_t>(row_id), *reinterpret_cast<const T*>(row.data));
             }
         });
     }
@@ -65,30 +66,25 @@ private:
         alignas(alignof(T)) uint8_t data[sizeof(T)];
     };
 
-    uint64_t             nonce_;
-    std::unique_ptr<row> rows_;
-    snw::slot_allocator  row_allocator_;
+    uint64_t               nonce_;
+    std::unique_ptr<row[]> rows_;
+    snw::slot_allocator    row_allocator_;
 };
 
 int main(int argc, char** argv) {
-    snw::slot_allocator sa(1 << 20);
+    table<int> tbl(1 << 20);
 
-    for (int i = 0; i < 10; ++i) {
-        uint64_t slot;
-        if (sa.allocate(&slot)) {
-            std::cout << "allocated: " << slot << std::endl;
-        }
-        else {
-            std::cout << "allocation failed" << std::endl;
-        }
+    int32_t rid1 = tbl.add(3);
+    int32_t rid2 = tbl.add(4);
 
-        if (i && ((i % 7) == 0)) {
-            sa.deallocate(slot - 1);
-        }
-    }
+    std::cout << "rid1: " << rid1 << std::endl;
+    std::cout << "rid2: " << rid2 << std::endl;
 
-    sa.scan([&](uint64_t slot) {
-        std::cout << "scanned: " << slot << std::endl;
+    tbl.scan([&](int32_t rid, int value) {
+        std::cout << "rid: " << rid << std::endl;
+        if (rid == rid1) {
+            tbl.remove(rid2);
+        }
     });
 
     return 0;
