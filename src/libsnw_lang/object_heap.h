@@ -33,7 +33,7 @@ public:
             check_free_space(sizeof(integer_repr));
 
             ref.is_indirect = true;
-            ref.value.address = size_;
+            ref.value.address = static_cast<uint16_t>(size_);
 
             auto& repr = access<integer_repr>(ref);
             repr.value = value;
@@ -58,7 +58,7 @@ public:
         object_ref ref;
         ref.type = object_type::symbol;
         ref.is_indirect = true;
-        ref.value.address = size_;
+        ref.value.address = static_cast<uint16_t>(size_);
 
         auto& repr = access<symbol_repr>(ref);
         repr.name = name;
@@ -83,7 +83,7 @@ public:
             ref.value.address = static_cast<uint16_t>(size_);
 
             auto& repr = access<string_repr>(ref);
-            repr.len = str_len;
+            repr.len = static_cast<uint16_t>(str_len);
             memcpy(repr.str, first, str_len);
             repr.str[str_len] = '\0';
 
@@ -105,7 +105,7 @@ public:
             ref.value.address = static_cast<uint16_t>(size_);
 
             auto& repr = access<bytes_repr>(ref);
-            repr.len = buf_len;
+            repr.len = static_cast<uint16_t>(buf_len);
             memcpy(repr.buf, first, buf_len);
 
             size_ += alloc_size;
@@ -136,16 +136,16 @@ public:
     }
 
     object_ref new_list(const object_ref* first, const object_ref* last) {
-        ssize_t len = last - first;
-        size_t alloc_size = sizeof(cell_repr) * len;
+        auto len = last - first;
+        auto alloc_size = sizeof(cell_repr) * len;
         check_free_space(alloc_size);
 
         object_ref head = new_nil();
-        for (ssize_t i = len - 1; i >= 0; --i) {
+        for (auto i = len - 1; i >= 0; --i) {
             object_ref cell_ref;
             cell_ref.type = object_type::cell;
             cell_ref.is_indirect = true;
-            cell_ref.value.address = size_ + (i * sizeof(cell_repr));
+            cell_ref.value.address = static_cast<uint16_t>(size_ + (i * sizeof(cell_repr)));
 
             auto& repr = access<cell_repr>(cell_ref);
             repr.car = first[i];

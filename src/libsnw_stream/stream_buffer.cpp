@@ -1,10 +1,13 @@
 #include "stream_buffer.h"
 #include "align.h"
+#include "platform.h"
 #include <stdexcept>
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <cassert>
+
+#if defined(SNW_OS_UNIX)
 
 #include <unistd.h>
 #include <sys/mman.h>
@@ -41,14 +44,6 @@ namespace {
 
         return size;
     }
-
-    pid_t get_pid() {
-        return ::getpid();
-    }
-
-    pid_t get_tid() {
-        return syscall(SYS_gettid);
-    }
 }
 
 snw::stream_buffer::stream_buffer(size_t min_size = 0)
@@ -62,8 +57,8 @@ snw::stream_buffer::stream_buffer(size_t min_size = 0)
 
     // create a temporary name for the shm
     char name[64];
-    int pid = static_cast<int>(get_pid());
-    int tid = static_cast<int>(get_tid());
+    int pid = static_cast<int>(get_current_process_id());
+    int tid = static_cast<int>(get_current_thread_id());
     if (snprintf(name, sizeof(name), "stream_buffer_%d_%d.shm", pid, tid) < 0) {
         throw std::runtime_error("failed create stream_buffer - snprintf");
     }
@@ -197,3 +192,39 @@ void snw::stream_buffer::close() {
         fd_ = -1;
     }
 }
+
+#else
+
+snw::stream_buffer::stream_buffer(size_t min_size)
+    : size_(0)
+    , data_(NULL)
+    , fd_(-1)
+{
+    throw std::runtime_error("not implemented");
+}
+
+snw::stream_buffer::stream_buffer(stream_buffer&& other)
+    : size_(other.size_)
+    , data_(other.data_)
+    , fd_(other.fd_)
+{
+    throw std::runtime_error("not implemented");
+}
+
+snw::stream_buffer::~stream_buffer() {
+    close();
+}
+
+snw::stream_buffer& snw::stream_buffer::operator=(stream_buffer&& rhs) {
+    throw std::runtime_error("not implemented");
+}
+
+snw::stream_buffer::operator bool() const {
+    return (fd_ >= 0);
+}
+
+void snw::stream_buffer::close() {
+    throw std::runtime_error("not implemented");
+}
+
+#endif

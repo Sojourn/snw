@@ -1,5 +1,6 @@
 set(SNW_SRCS
     snw_util.cpp
+    platform.cpp
     dfa16_state_machine.cpp
     slot_allocator.cpp
 )

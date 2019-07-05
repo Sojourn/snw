@@ -3,6 +3,12 @@
 #include <cstdint>
 #include <cassert>
 
+#include "platform.h"
+
+#ifdef SNW_OS_WINDOWS
+#  include <intrin.h>
+#endif
+
 namespace snw {
 
 template<typename T>
@@ -26,24 +32,54 @@ inline bool test_bit(T value, int index) {
 }
 
 inline int count_trailing_zeros(uint32_t value) {
+#if defined(SNW_OS_UNIX)
     return __builtin_ctz(value);
+#elif defined(SNW_OS_WINDOWS)
+    unsigned long index;
+    unsigned char found_zero = _BitScanReverse(&index, value);
+    assert(found_zero);
+    return index;
+#else
+#error "not implemented"
+#endif
 }
 
 inline int count_trailing_zeros(uint64_t value) {
+#if defined(SNW_OS_UNIX)
     return __builtin_ctzll(value);
+#elif defined(SNW_OS_WINDOWS)
+    unsigned long index;
+    unsigned char found_zero = _BitScanReverse64(&index, value);
+    assert(found_zero);
+    return index;
+#else
+#error "not implemented"
+#endif
 }
 
 inline int count_set_bits(uint32_t value) {
+#if defined(SNW_OS_UNIX)
     return __builtin_popcount(value);
+#elif defined(SNW_OS_WINDOWS)
+    return static_cast<int>(__popcnt(value));
+#else
+#error "not implemented"
+#endif
 }
 
 inline int count_set_bits(uint64_t value) {
+#if defined(SNW_OS_UNIX)
     return __builtin_popcountll(value);
+#elif defined(SNW_OS_WINDOWS)
+    return static_cast<int>(__popcnt64(value));
+#else
+#error "not implemented"
+#endif
 }
 
 inline int extract_set_bits(uint32_t value, int (&result)[32]) {
     int set_bit_cnt = count_set_bits(value);
-    for (uint32_t i = 0; i < set_bit_cnt; ++i) {
+    for (int i = 0; i < set_bit_cnt; ++i) {
         int bit_index = count_trailing_zeros(value);
         value &= ~(static_cast<uint32_t>(1) << bit_index);
         result[i] = bit_index;

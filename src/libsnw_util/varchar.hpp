@@ -21,6 +21,7 @@ snw::varchar<capacity_>::varchar(const char* str, size_t len) : data_{} {
 template<size_t capacity_>
 snw::varchar<capacity_>& snw::varchar<capacity_>::operator=(const char* str) {
     assign(str);
+    return *this;
 }
 
 template<size_t capacity_>

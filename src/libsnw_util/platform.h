@@ -8,3 +8,13 @@
 #    define SNW_OS_LINUX (1)
 #  endif
 #endif
+
+namespace snw {
+
+using process_id = int;
+using thread_id = int;
+
+process_id get_current_process_id();
+thread_id get_current_thread_id();
+
+}
