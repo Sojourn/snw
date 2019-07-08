@@ -168,22 +168,36 @@ public:
         return reinterpret_cast<const sockaddr*>(&storage_);
     }
 
-    sockaddr_in* addr_in() {
+    sockaddr_in* addr_ipv4() {
         return reinterpret_cast<sockaddr_in*>(&storage_);
     }
     
-    const sockaddr_in* addr_in() const {
+    const sockaddr_in* addr_ipv4() const {
         return reinterpret_cast<const sockaddr_in*>(&storage_);
     }
 
-#if defined(SNW_OS_WINDOWS)
-    SOCKADDR_IN6* addr_in6() {
+#if defined(SNW_OS_UNIX)
+    sockaddr_in6* addr_ipv6() {
+        return reinterpret_cast<sockaddr_in6*>(&storage_);
+    }
+
+    const sockaddr_in6* addr_ipv6() const {
+        return reinterpret_cast<const sockaddr_in6*>(&storage_);
+    }
+
+    sockaddr_un* addr_unix() {
+        return reinterpret_cast<sockaddr_un*>(&storage_);
+    }
+
+    const sockaddr_un* addr_unix() const {
+        return reinterpret_cast<const sockaddr_un*>(&storage_);
+    }
+#elif defined(SNW_OS_WINDOWS)
+    SOCKADDR_IN6* addr_ipv6() {
         return reinterpret_cast<SOCKADDR_IN6*>(&storage_);
     }
-#endif
 
-#if defined(SNW_OS_WINDOWS)
-    const SOCKADDR_IN6* addr_in6() const {
+    const SOCKADDR_IN6* addr_ipv6() const {
         return reinterpret_cast<const SOCKADDR_IN6*>(&storage_);
     }
 #endif
@@ -200,8 +214,9 @@ private:
 #if defined(SNW_OS_UNIX)
     // FIXME: does this already exist?
     union {
-        sockaddr_in ipv4_addr;
-        sockaddr_un unix_addr;
+        sockaddr_in  ipv4_addr;
+        sockaddr_in6 ipv6_addr;
+        sockaddr_un  unix_addr;
     } storage_;
 #elif defined(SNW_OS_WINDOWS)
     SOCKADDR_STORAGE storage_;
