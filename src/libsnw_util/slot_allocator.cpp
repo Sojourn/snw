@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include "align.h"
 #include "slot_allocator.h"
 
@@ -46,6 +47,8 @@ snw::slot_allocator::slot_allocator(size_t capacity)
         leaf_nodes_.resize(leaf_count);
         levels_[depth].first = leaf_nodes_.data();
     }
+
+    check_integrity();
 }
 
 bool snw::slot_allocator::allocate(uint64_t* slot) {
@@ -83,11 +86,19 @@ bool snw::slot_allocator::allocate(uint64_t* slot) {
             }
         }
 
+        std::cout << "depth:" << depth << std::endl;
+        std::cout << "index:" << c.tell() << std::endl;
+        std::cout << "chunk_offset:" << chunk_offset << std::endl;
+        std::cout << "bit_offset:" << bit_offset << std::endl;
+
         assert(chunk_offset < node_chunk_count);
         c.desend(chunk_offset, bit_offset);
     }
 
     *slot = c.tell();
+    std::cout << "slot:" << *slot << std::endl;
+    assert(*slot < capacity_);
+    std::cout << std::endl;
 
     bool any_live = false;
     bool any_dead = false;
@@ -124,6 +135,9 @@ bool snw::slot_allocator::allocate(uint64_t* slot) {
         }
     }
 
+#if 1
+    check_integrity();
+#endif
     return true;
 }
 
@@ -193,6 +207,47 @@ bool snw::slot_allocator::all(const uint64_t (&chunks)[node_chunk_count]) {
 
 bool snw::slot_allocator::none(const uint64_t (&chunks)[node_chunk_count]) {
     return !any(chunks);
+}
+
+void snw::slot_allocator::check_integrity() const {
+    for (size_t depth = 0; depth < (height_ - 1); ++depth) {
+        for (size_t node_offset = 0; node_offset < levels_[depth].width; ++node_offset) {
+            const branch_node& branch = static_cast<const branch_node&>(levels_[depth].first[node_offset]);
+            for (int chunk_offset = 0; chunk_offset < node_chunk_count; ++chunk_offset) {
+                // check integrity of any_live
+                for_each_set_bit(branch.any_live[chunk_offset], [&](int bit_offset) {
+                    cursor cursor(node_offset);
+                    cursor.desend(chunk_offset, bit_offset);
+
+                    const node& child_node = levels_[depth + 1].first[cursor.tell()];
+                    if (is_leaf_level(depth + 1)) {
+                        const leaf_node& child_leaf = static_cast<const leaf_node&>(child_node);
+                        assert(any(child_leaf.live));
+                    }
+                    else {
+                        const branch_node& child_branch = static_cast<const branch_node&>(child_node);
+                        assert(any(child_branch.any_live));
+                    }
+                });
+
+                // check integrity of any_dead
+                for_each_set_bit(branch.any_dead[chunk_offset], [&](int bit_offset) {
+                    cursor cursor(node_offset);
+                    cursor.desend(chunk_offset, bit_offset);
+
+                    const node& child_node = levels_[depth + 1].first[cursor.tell()];
+                    if (is_leaf_level(depth + 1)) {
+                        const leaf_node& child_leaf = static_cast<const leaf_node&>(child_node);
+                        assert(!all(child_leaf.live));
+                    }
+                    else {
+                        const branch_node& child_branch = static_cast<const branch_node&>(child_node);
+                        assert(any(child_branch.any_dead));
+                    }
+                });
+            }
+        }
+    }
 }
 
 snw::slot_allocator::branch_node::branch_node() {

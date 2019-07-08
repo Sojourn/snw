@@ -59,6 +59,8 @@ private:
     template<typename F>
     void scan_node(int depth, uint64_t node_offset, F&& f) const;
 
+    void check_integrity() const;
+
 private:
     class cursor;
 
