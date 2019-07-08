@@ -15,4 +15,8 @@ set(SNW_LIBS
 
 add_executable(snw ${SNW_SRCS} ${SNW_HDRS})
 
-target_link_libraries(snw LINK_PUBLIC ${SNW_LIBS} rt pthread)
+target_link_libraries(snw LINK_PUBLIC ${SNW_LIBS})
+
+if(UNIX)
+    target_link_libraries(snw LINK_PUBLIC rt pthread)
+endif()

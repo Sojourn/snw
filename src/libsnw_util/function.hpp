@@ -126,6 +126,7 @@ auto snw::basic_function<capacity, Result(Args...)>::operator=(Fn&& fn) -> basic
 
     destroy_callable();
     create_callable<callable_impl>(std::forward<Fn>(fn));
+    return *this;
 }
 
 template<size_t capacity, typename Result, typename... Args>

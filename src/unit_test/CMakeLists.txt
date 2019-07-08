@@ -31,4 +31,8 @@ set(SNW_LIBS
 
 add_executable(unit_test ${SNW_SRCS} ${SNW_HDRS})
 
-target_link_libraries(unit_test LINK_PUBLIC ${SNW_LIBS} rt)
+target_link_libraries(unit_test LINK_PUBLIC ${SNW_LIBS})
+
+if(UNIX)
+    target_link_libraries(unit_test LINK_PUBLIC rt)
+endif()
