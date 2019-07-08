@@ -7,22 +7,36 @@
 #include "message_stream.h"
 #include "slot_allocator.h"
 
-#if defined(SNW_OS_WINDOWS)
-#define WIN32_LEAN_AND_MEAN
+#if defined(SNW_OS_UNIX)
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
+#elif defined(SNW_OS_WINDOWS)
+
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
 #pragma comment(lib, "ws2_32.lib")
+
 #endif
 
 namespace snw {
 
 enum class socket_address_family {
-    UNSPEC = AF_UNSPEC,
-    INET   = AF_INET,
-    // INET6  = AF_INET6,
+    unknown = AF_UNSPEC, // FIXME: rename?
+    ipv4    = AF_INET,
+#if defined(SNW_OS_UNIX)
+    ipv6    = AF_INET6,
+    unix    = AF_UNIX,
+#endif
 };
 
 enum class socket_type {
@@ -32,12 +46,23 @@ enum class socket_type {
 };
 
 enum class socket_protocol {
-    icmp   = IPPROTO_ICMP,
-    // icmpv6 = IPPROTO_ICMPV6,
-    igmp   = IPPROTO_IGMP,
-    tcp    = IPPROTO_TCP,
-    udp    = IPPROTO_UDP,
+    unknown = 0,
 };
+
+#if 0
+class socket_protocol {
+public:
+    socket_protocol();
+    socket_protocol(socket_address_family address_family, const char* protocol_name);
+
+    explicit operator int() const {
+        return id_;
+    }
+
+private:
+    int id_;
+};
+#endif
 
 class socket {
 #if defined(SNW_OS_UNIX)
@@ -49,12 +74,17 @@ class socket {
 #endif
 
 public:
-    socket(socket_address_family address_family, socket_type type, socket_protocol protocol)
+    socket(socket_address_family address_family, socket_type type, socket_protocol protocol=socket_protocol::unknown)
         : address_family_(address_family)
         , type_(type)
         , protocol_(protocol)
     {
-#if defined(SNW_OS_WINDOWS)
+#if defined(SNW_OS_UNIX)
+        socket_ = ::socket(static_cast<int>(address_family_), static_cast<int>(type), static_cast<int>(protocol));
+        if (socket_ < 0) {
+            throw std::runtime_error("Failed to create socket"); // TODO: format error
+        }
+#elif defined(SNW_OS_WINDOWS)
         DWORD flags = WSA_FLAG_OVERLAPPED;
 
         socket_ = WSASocketW(static_cast<int>(address_family_), static_cast<int>(type_), static_cast<int>(protocol_), NULL, 0, flags);
@@ -62,7 +92,7 @@ public:
             int wsa_err = WSAGetLastError();
             (void)wsa_err;
 
-            throw std::runtime_error("Failed to create socket");
+            throw std::runtime_error("Failed to create socket"); // TODO: format error
         }
 #else
 #error "not implemented"
@@ -115,7 +145,7 @@ class address {
 public:
     address() {
         memset(&storage_, 0, sizeof(storage_));
-        addr()->sa_family = static_cast<decltype(addr()->sa_family)>(socket_address_family::UNSPEC);
+        addr()->sa_family = static_cast<decltype(addr()->sa_family)>(socket_address_family::unknown);
     }
 
     address(const address& other) {
@@ -163,18 +193,24 @@ public:
     }
 
     explicit operator bool() const {
-        return address_family() == socket_address_family::UNSPEC;
+        return address_family() == socket_address_family::unknown;
     }
 
 private:
-#if defined(SNW_OS_WINDOWS)
+#if defined(SNW_OS_UNIX)
+    // FIXME: does this already exist?
+    union {
+        sockaddr_in ipv4_addr;
+        sockaddr_un unix_addr;
+    } storage_;
+#elif defined(SNW_OS_WINDOWS)
     SOCKADDR_STORAGE storage_;
 #else
 #error "not implemented"
 #endif
 };
 
-address make_address(const char* hostname, socket_address_family address_family = socket_address_family::UNSPEC) {
+address make_address(const char* hostname, socket_address_family address_family = socket_address_family::unknown) {
     return address();
 }
 
@@ -222,7 +258,7 @@ private:
 int main(int argc, char** argv) {
     Application app;
 
-    snw::socket sock(snw::socket_address_family::INET, snw::socket_type::stream, snw::socket_protocol::tcp);
+    snw::socket sock(snw::socket_address_family::ipv4, snw::socket_type::stream);
 
 #if defined(SNW_OS_WINDOWS)
     std::system("pause");
