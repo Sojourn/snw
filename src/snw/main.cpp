@@ -114,8 +114,29 @@ public:
         close();
     }
 
+    socket& operator=(socket&& rhs) {
+        if (this != &rhs) {
+            close();
+
+            address_family_ = rhs.address_family_;
+            type_ = rhs.type_;
+            protocol_ = rhs.protocol_;
+            socket_ = rhs.socket_;
+
+            rhs.socket_ = invalid_socket;
+        }
+
+        return *this;
+    }
+
+    socket& operator=(const socket&) = delete;
+
+    explicit operator bool() const {
+        return socket_ == invalid_socket;
+    }
+
     void close() {
-        if (socket_ == invalid_socket) {
+        if (!*this) {
             return;
         }
 
@@ -134,8 +155,6 @@ public:
 
 private:
     socket_address_family address_family_;
-
-    // Does anything need these?
     socket_type           type_;
     socket_protocol       protocol_;
     native_socket         socket_;
