@@ -132,7 +132,7 @@ public:
     socket& operator=(const socket&) = delete;
 
     explicit operator bool() const {
-        return socket_ == invalid_socket;
+        return socket_ != invalid_socket;
     }
 
     void close() {
@@ -151,6 +151,38 @@ public:
 #endif
 
         socket_ = invalid_socket;
+    }
+
+    void set_blocking(bool blocking) {
+        if (!*this) {
+            throw std::runtime_error("socket is closed");
+        }
+
+#if defined(SNW_OS_UNIX)
+#error "not implemented"
+#elif defined(SNW_OS_WINDOWS)
+        unsigned long in_buf = blocking ? 0 : 1;
+        unsigned long out_buf = 0;
+        DWORD out_len = 0;
+
+        int err = WSAIoctl(
+            socket_,
+            FIONBIO,
+            &in_buf,
+            sizeof(in_buf),
+            &out_buf,
+            sizeof(out_buf),
+            &out_len,
+            nullptr,
+            nullptr
+        );
+
+        if (err < 0) {
+            throw std::runtime_error("failed to set socket option"); // TODO: details
+        }
+#else
+#error "not implemented"
+#endif
     }
 
 private:
@@ -292,7 +324,13 @@ private:
 int main(int argc, char** argv) {
     Application app;
 
-    snw::socket sock(snw::socket_address_family::ipv4, snw::socket_type::stream);
+    try {
+        snw::socket sock(snw::socket_address_family::ipv4, snw::socket_type::stream);
+        sock.set_blocking(false);
+    }
+    catch (const std::exception& ex) {
+        std::cerr << ex.what() << std::endl;
+    }
 
 #if defined(SNW_OS_WINDOWS)
     std::system("pause");
