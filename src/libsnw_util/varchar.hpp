@@ -1,8 +1,6 @@
 #include <immintrin.h>
 #include "bits.h"
 
-#define VARCHAR_SIMD_ENABLED 1
-
 template<size_t capacity_>
 snw::varchar<capacity_>::varchar() : data_{} {
     clear();
@@ -25,13 +23,39 @@ snw::varchar<capacity_>& snw::varchar<capacity_>::operator=(const char* str) {
 }
 
 template<size_t capacity_>
+snw::varchar<capacity_>& snw::varchar<capacity_>::operator+=(char c) {
+    size_t off = size();
+    if ((off + 1) > capacity_) {
+        throw std::runtime_error("varchar buffer overflow");
+    }
+
+    data_[off] = c;
+}
+
+template<size_t capacity_>
+snw::varchar<capacity_>& snw::varchar<capacity_>::operator+=(const char* str) {
+    for (size_t i = size(); i < capacity_; ++i) {
+        data_[i] = *str;
+        if (*str != '\0') {
+            str++;
+        }
+        else {
+            // keep assigning '\0' from str
+        }
+    }
+
+    if (*str != '\0') {
+        throw std::runtime_error("varchar buffer overflow");
+    }
+}
+
+template<size_t capacity_>
 bool snw::varchar<capacity_>::empty() const {
     return data_[0] == '\0';
 }
 
 template<size_t capacity_>
 size_t snw::varchar<capacity_>::size() const {
-#if VARCHAR_SIMD_ENABLED
     __m128i null_vec = _mm_setzero_si128();
 
     for (size_t i = 0; i < capacity_; i += 16) {
@@ -49,16 +73,6 @@ size_t snw::varchar<capacity_>::size() const {
     }
 
     return capacity_;
-#else
-    size_t i = 0;
-    for (; i < capacity_; ++i) {
-        if (data_[i] == '\0') {
-            break;
-        }
-    }
-
-    return i;
-#endif
 }
 
 template<size_t capacity_>
@@ -97,17 +111,11 @@ const char& snw::varchar<capacity_>::operator[](size_t index) const {
 
 template<size_t capacity_>
 void snw::varchar<capacity_>::clear() {
-#if VARCHAR_SIMD_ENABLED
     __m128i null_vec = _mm_setzero_si128();
 
     for (size_t i = 0; i < capacity_; i += 16) {
         _mm_storeu_si128((__m128i*)(data_ + i), null_vec);
     }
-#else
-    for (size_t i = 0; i < capacity_; ++i) {
-        data_[i] = '\0';
-    }
-#endif
 }
 
 template<size_t capacity_>

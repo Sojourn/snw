@@ -28,6 +28,9 @@ public:
     varchar& operator=(const varchar&) = default;
     varchar& operator=(const char* str);
 
+    varchar& operator+=(char c);
+    varchar& operator+=(const char* str);
+
     bool empty() const;
     size_t size() const;
     size_t capacity() const;

@@ -198,6 +198,7 @@ public:
         if (err < 0) {
             throw std::runtime_error("failed to set socket option"); // TODO: details
         }
+
 #else
 #error "not implemented"
 #endif
