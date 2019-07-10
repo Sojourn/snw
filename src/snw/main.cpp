@@ -17,6 +17,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #elif defined(SNW_OS_WINDOWS)
 
@@ -161,11 +162,26 @@ public:
         }
 
 #if defined(SNW_OS_UNIX)
-#error "not implemented"
+        int flags = fcntl(socket_, F_GETFL, 0);
+        if (flags < 0) {
+            throw std::runtime_error("failed to set socket option"); // TODO: details
+        }
+
+        if (blocking) {
+            flags = flags & ~O_NONBLOCK;
+        }
+        else {
+            flags = flags | O_NONBLOCK;
+        }
+
+        if (fcntl(socket_, F_SETFL, flags) < 0) {
+            throw std::runtime_error("failed to set socket option"); // TODO: details
+        }
+
 #elif defined(SNW_OS_WINDOWS)
         unsigned long in_buf = blocking ? 0 : 1;
         unsigned long out_buf = 0;
-        DWORD out_len = 0;
+        DWORD out_cnt = 0;
 
         int err = WSAIoctl(
             socket_,
@@ -174,7 +190,7 @@ public:
             sizeof(in_buf),
             &out_buf,
             sizeof(out_buf),
-            &out_len,
+            &out_cnt,
             nullptr,
             nullptr
         );
