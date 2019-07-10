@@ -116,8 +116,29 @@ public:
         close();
     }
 
+    socket& operator=(socket&& rhs) {
+        if (this != &rhs) {
+            close();
+
+            address_family_ = rhs.address_family_;
+            type_ = rhs.type_;
+            protocol_ = rhs.protocol_;
+            socket_ = rhs.socket_;
+
+            rhs.socket_ = invalid_socket;
+        }
+
+        return *this;
+    }
+
+    socket& operator=(const socket&) = delete;
+
+    explicit operator bool() const {
+        return socket_ != invalid_socket;
+    }
+
     void close() {
-        if (socket_ == invalid_socket) {
+        if (!*this) {
             return;
         }
 
@@ -134,10 +155,40 @@ public:
         socket_ = invalid_socket;
     }
 
+    void set_blocking(bool blocking) {
+        if (!*this) {
+            throw std::runtime_error("socket is closed");
+        }
+
+#if defined(SNW_OS_UNIX)
+#error "not implemented"
+#elif defined(SNW_OS_WINDOWS)
+        unsigned long in_buf = blocking ? 0 : 1;
+        unsigned long out_buf = 0;
+        DWORD out_len = 0;
+
+        int err = WSAIoctl(
+            socket_,
+            FIONBIO,
+            &in_buf,
+            sizeof(in_buf),
+            &out_buf,
+            sizeof(out_buf),
+            &out_len,
+            nullptr,
+            nullptr
+        );
+
+        if (err < 0) {
+            throw std::runtime_error("failed to set socket option"); // TODO: details
+        }
+#else
+#error "not implemented"
+#endif
+    }
+
 private:
     socket_address_family address_family_;
-
-    // Does anything need these?
     socket_type           type_;
     socket_protocol       protocol_;
     native_socket         socket_;
@@ -344,6 +395,7 @@ int main(int argc, char** argv) {
 
     return application(argc, argv).run([]() {
         snw::socket sock(snw::socket_address_family::ipv4, snw::socket_type::stream);
+        sock.set_blocking(false);
         snw::address addr("google.com");
     });
 
