@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <string>
 #include <cstdint>
 
 #include "intrusive_list.h"
@@ -14,6 +15,7 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <unistd.h>
 
 #elif defined(SNW_OS_WINDOWS)
@@ -148,6 +150,57 @@ public:
         addr()->sa_family = static_cast<decltype(addr()->sa_family)>(socket_address_family::unknown);
     }
 
+    // TODO: make name a string_view
+    address(const char* name, socket_address_family address_family=socket_address_family::unknown) {
+        memset(&storage_, 0, sizeof(storage_));
+
+#if SNW_OS_UNIX
+        if (address_family == socket_address_family::unix) {
+            // TODO
+            return;
+        }
+#endif
+
+        static constexpr size_t buf_len = 4096;
+        char buf[buf_len];
+
+        int rc;
+        int err;
+        struct hostent hbuf;
+        struct hostent* hres = nullptr;
+
+        switch (address_family) {
+        case socket_address_family::ipv4:
+#ifdef SNW_OS_UNIX
+        case socket_address_family::ipv6:
+#endif
+            rc = gethostbyname2_r(name, static_cast<int>(address_family), &hbuf, buf, buf_len, &hres, &err);
+            break;
+
+        default:
+            rc = gethostbyname_r(name, &hbuf, buf, buf_len, &hres, &err);
+            break;
+        }
+
+        if (rc == 0 && hres) {
+            std::cout << "host: " << hres->h_name << std::endl;
+            while (*hres->h_aliases) {
+                std::cout << "alias: " << (hres->h_aliases++) << std::endl;
+            }
+            std::cout << "addrtype: " << hres->h_addrtype << std::endl;
+            std::cout << "addrlen: " << hres->h_length << std::endl;
+            while (*hres->h_addr_list) {
+                std::cout << "addr: " << (void*)(hres->h_addr_list++) << std::endl;
+            }
+        }
+        else if (rc == ERANGE) {
+            std::cout << "buffer too small" << std::endl;
+        }
+        else {
+            std::cout << "other error" << std::endl;
+        }
+    }
+
     address(const address& other) {
         memcpy(&storage_, &other.storage_, sizeof(storage_));
     }
@@ -212,12 +265,7 @@ public:
 
 private:
 #if defined(SNW_OS_UNIX)
-    // FIXME: does this already exist?
-    union {
-        sockaddr_in  ipv4_addr;
-        sockaddr_in6 ipv6_addr;
-        sockaddr_un  unix_addr;
-    } storage_;
+    sockaddr_storage storage_;
 #elif defined(SNW_OS_WINDOWS)
     SOCKADDR_STORAGE storage_;
 #else
@@ -232,9 +280,37 @@ address make_address(const char* hostname, socket_address_family address_family 
 }
 
 // TODO: snake_case
-class Application {
+class application {
 public:
-    Application() {
+    application(size_t argc, char** argv) {
+        (void)argc;
+        (void)argv;
+    }
+
+    template<typename F>
+    int run(F&& f) {
+        int rc = EXIT_SUCCESS;
+
+        try {
+            setup();
+            f();
+            cleanup();
+        }
+        catch (const std::exception& ex) {
+            std::cerr << ex.what() << std::endl;
+            rc = EXIT_FAILURE;
+        }
+
+        return rc;
+    }
+
+private:
+    application(application&&) = delete;
+    application(const application&) = delete;
+    application& operator=(application&&) = delete;
+    application& operator=(const application&) = delete;
+
+    void setup() {
 #if defined(SNW_OS_WINDOWS)
         int err;
         WORD requested_version;
@@ -254,26 +330,22 @@ public:
 #endif
     }
 
-    ~Application() {
+    void cleanup() {
 #if defined(SNW_OS_WINDOWS)
-        int err;
-        
-        err = WSACleanup();
-        assert(!err);
+        if (WSACleanup() < 0) {
+            throw std::runtime_error("WSACleanup failed");
+        }
 #endif
     }
-
-private:
-    Application(Application&&) = delete;
-    Application(const Application&) = delete;
-    Application& operator=(Application&&) = delete;
-    Application& operator=(const Application&) = delete;
 };
 
 int main(int argc, char** argv) {
-    Application app;
+    application app(argc, argv);
 
-    snw::socket sock(snw::socket_address_family::ipv4, snw::socket_type::stream);
+    return application(argc, argv).run([]() {
+        snw::socket sock(snw::socket_address_family::ipv4, snw::socket_type::stream);
+        snw::address addr("google.com");
+    });
 
 #if defined(SNW_OS_WINDOWS)
     std::system("pause");
