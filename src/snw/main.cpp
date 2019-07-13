@@ -242,12 +242,17 @@ public:
 #ifdef SNW_OS_UNIX
         case socket_address_family::ipv6:
 #endif
+#if defined(SNW_OS_UNIX)
             rc = gethostbyname2_r(name, static_cast<int>(address_family), &hbuf, buf, buf_len, &hres, &err);
             break;
 
         default:
             rc = gethostbyname_r(name, &hbuf, buf, buf_len, &hres, &err);
             break;
+#elif defined(SNW_OS_WINDOWS)
+        default:
+            throw std::runtime_error("not implemented");
+#endif
         }
 
         if (rc == 0 && hres) {
