@@ -11,6 +11,7 @@ set(SNW_LIBS
     snw_event
     snw_mem
     snw_lang
+    snw_io
 )
 
 add_executable(snw ${SNW_SRCS} ${SNW_HDRS})
