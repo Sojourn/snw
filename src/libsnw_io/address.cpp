@@ -13,10 +13,15 @@ snw::address::address(const char* name, socket_address_family address_family) {
     memset(&storage_, 0, sizeof(storage_));
 
     switch (address_family) {
-    case socket_address_family::ipv4:
-    case socket_address_family::ipv6: {
-        // TODO: handle numerical format
+    case socket_address_family::ipv4: {
+        sockaddr_in& sin = addr_ipv4();
+        sin.sin_family = AF_INET;
+        if (inet_aton(name, &sin.sin_addr) == 0) {
+            return;
+        }
+        // fall through
     }
+    case socket_address_family::ipv6:
     case socket_address_family::unknown: {
         int rc;
         int err;
@@ -92,6 +97,30 @@ snw::address::operator bool() const {
 
 snw::socket_address_family snw::address::address_family() const {
     return static_cast<socket_address_family>(addr().sa_family);
+}
+
+uint16_t snw::address::port() const {
+    switch (address_family()) {
+    case socket_address_family::ipv4:
+        return ntohs(addr_ipv4().sin_port);
+    case socket_address_family::ipv6:
+        return ntohs(addr_ipv6().sin6_port);
+    default:
+        throw std::runtime_error("address family does not use ports");
+    }
+}
+
+void snw::address::set_port(uint16_t port) {
+    switch (address_family()) {
+    case socket_address_family::ipv4:
+        addr_ipv4().sin_port = htons(port);
+        break;
+    case socket_address_family::ipv6:
+        addr_ipv6().sin6_port = htons(port);
+        break;
+    default:
+        throw std::runtime_error("address family does not use ports");
+    }
 }
 
 sockaddr& snw::address::addr() {

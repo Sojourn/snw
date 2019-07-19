@@ -23,6 +23,9 @@ public:
 
     socket_address_family address_family() const;
 
+    uint16_t port() const;
+    void set_port(uint16_t port);
+
     sockaddr& addr();
     const sockaddr& addr() const;
 
@@ -34,6 +37,8 @@ public:
 
     sockaddr_un& addr_unix();
     const sockaddr_un& addr_unix() const;
+
+    friend std::ostream& operator<<(std::ostream& out, const address& addr);
 
 private:
     sockaddr_storage storage_;
