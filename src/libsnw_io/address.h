@@ -7,6 +7,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <sstream>
+#include <string>
 #include "socket.h"
 
 namespace snw {
@@ -38,7 +40,33 @@ public:
     sockaddr_un& addr_unix();
     const sockaddr_un& addr_unix() const;
 
-    friend std::ostream& operator<<(std::ostream& out, const address& addr);
+    std::string to_string() const {
+        std::stringstream ss;
+        ss << "address {";
+
+        switch (address_family()) {
+        case socket_address_family::ipv4:
+            ss << "  family: IPv4" << '\n';
+            ss << "  addr: " << ntohl(addr_ipv4().sin_addr.s_addr) << '\n';
+            ss << "  port: " << port() << '\n';
+            break;
+        case socket_address_family::unix:
+            ss << "  family: Unix" << '\n';
+            ss << "  path: " << addr_unix().sun_path << '\n';
+            break;
+        case socket_address_family::ipv6:
+            ss << "  family: IPv6" << '\n';
+            break;
+        case socket_address_family::unknown:
+            ss << "  family: None" << '\n';
+            break;
+        default:
+            throw std::runtime_error("address family not supported");
+        }
+
+        ss << '}';
+        return ss.str();
+    }
 
 private:
     sockaddr_storage storage_;

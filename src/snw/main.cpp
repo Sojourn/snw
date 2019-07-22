@@ -211,141 +211,6 @@ private:
     native_socket         socket_;
 };
 
-class address {
-public:
-    address() {
-        memset(&storage_, 0, sizeof(storage_));
-        addr()->sa_family = static_cast<decltype(addr()->sa_family)>(socket_address_family::unknown);
-    }
-
-    // TODO: make name a string_view
-    address(const char* name, socket_address_family address_family=socket_address_family::unknown) {
-        memset(&storage_, 0, sizeof(storage_));
-
-#if SNW_OS_UNIX
-        if (address_family == socket_address_family::unix) {
-            // TODO
-            return;
-        }
-#endif
-
-        static constexpr size_t buf_len = 4096;
-        char buf[buf_len];
-
-        int rc;
-        int err;
-        struct hostent hbuf;
-        struct hostent* hres = nullptr;
-
-        switch (address_family) {
-        case socket_address_family::ipv4:
-#ifdef SNW_OS_UNIX
-        case socket_address_family::ipv6:
-#endif
-#if defined(SNW_OS_UNIX)
-            rc = gethostbyname2_r(name, static_cast<int>(address_family), &hbuf, buf, buf_len, &hres, &err);
-            break;
-
-        default:
-            rc = gethostbyname_r(name, &hbuf, buf, buf_len, &hres, &err);
-            break;
-#elif defined(SNW_OS_WINDOWS)
-        default:
-            throw std::runtime_error("not implemented");
-#endif
-        }
-
-        if (rc == 0 && hres) {
-            std::cout << "host: " << hres->h_name << std::endl;
-            while (*hres->h_aliases) {
-                std::cout << "alias: " << (hres->h_aliases++) << std::endl;
-            }
-            std::cout << "addrtype: " << hres->h_addrtype << std::endl;
-            std::cout << "addrlen: " << hres->h_length << std::endl;
-            while (*hres->h_addr_list) {
-                std::cout << "addr: " << (void*)(hres->h_addr_list++) << std::endl;
-            }
-        }
-        else if (rc == ERANGE) {
-            std::cout << "buffer too small" << std::endl;
-        }
-        else {
-            std::cout << "other error" << std::endl;
-        }
-    }
-
-    address(const address& other) {
-        memcpy(&storage_, &other.storage_, sizeof(storage_));
-    }
-
-    address& operator=(const address& rhs) {
-        if (this != &rhs) {
-            memcpy(&storage_, &rhs.storage_, sizeof(storage_));
-        }
-        
-        return *this;
-    }
-
-    sockaddr* addr() {
-        return reinterpret_cast<sockaddr*>(&storage_);
-    }
-    
-    const sockaddr* addr() const {
-        return reinterpret_cast<const sockaddr*>(&storage_);
-    }
-
-    sockaddr_in* addr_ipv4() {
-        return reinterpret_cast<sockaddr_in*>(&storage_);
-    }
-    
-    const sockaddr_in* addr_ipv4() const {
-        return reinterpret_cast<const sockaddr_in*>(&storage_);
-    }
-
-#if defined(SNW_OS_UNIX)
-    sockaddr_in6* addr_ipv6() {
-        return reinterpret_cast<sockaddr_in6*>(&storage_);
-    }
-
-    const sockaddr_in6* addr_ipv6() const {
-        return reinterpret_cast<const sockaddr_in6*>(&storage_);
-    }
-
-    sockaddr_un* addr_unix() {
-        return reinterpret_cast<sockaddr_un*>(&storage_);
-    }
-
-    const sockaddr_un* addr_unix() const {
-        return reinterpret_cast<const sockaddr_un*>(&storage_);
-    }
-#elif defined(SNW_OS_WINDOWS)
-    SOCKADDR_IN6* addr_ipv6() {
-        return reinterpret_cast<SOCKADDR_IN6*>(&storage_);
-    }
-
-    const SOCKADDR_IN6* addr_ipv6() const {
-        return reinterpret_cast<const SOCKADDR_IN6*>(&storage_);
-    }
-#endif
-
-    socket_address_family address_family() const {
-        return static_cast<socket_address_family>(addr()->sa_family);
-    }
-
-    explicit operator bool() const {
-        return address_family() == socket_address_family::unknown;
-    }
-
-private:
-#if defined(SNW_OS_UNIX)
-    sockaddr_storage storage_;
-#elif defined(SNW_OS_WINDOWS)
-    SOCKADDR_STORAGE storage_;
-#else
-#error "not implemented"
-#endif
-};
-
 address make_address(const char* hostname, socket_address_family address_family = socket_address_family::unknown) {
     return address();
 }
@@ -418,7 +283,11 @@ int main(int argc, char** argv) {
     return application(argc, argv).run([]() {
         snw::socket sock(snw::socket_address_family::ipv4, snw::socket_type::stream);
         sock.set_blocking(false);
+
         snw::address addr("google.com");
+        addr.set_port(80);
+
+        std::cout << addr.to_string() << std::endl;
     });
 
 #if defined(SNW_OS_WINDOWS)
