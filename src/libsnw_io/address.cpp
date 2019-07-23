@@ -98,6 +98,14 @@ snw::address& snw::address::operator=(const address& rhs) {
     return *this;
 }
 
+bool snw::address::operator==(const address& rhs) const {
+    return memcmp(&storage_, &rhs.storage_, sizeof(storage_)) == 0;
+}
+
+bool snw::address::operator!=(const address& rhs) const {
+    return !operator==(rhs);
+}
+
 snw::address::operator bool() const {
     return address_family() != socket_address_family::unknown;
 }

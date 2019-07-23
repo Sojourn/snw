@@ -1,4 +1,5 @@
 #include <stdexcept>
+#include <cstring>
 #include <cassert>
 #include <fcntl.h>
 #include "socket.h"
@@ -6,7 +7,7 @@
 snw::socket::socket(socket_address_family address_family, socket_type type) {
     fd_ = ::socket(static_cast<int>(address_family), static_cast<int>(type), 0);
     if (fd_ < 0) {
-        throw std::runtime_error("failed to open socket");
+        throw std::runtime_error(strerror(errno));
     }
 }
 
@@ -56,7 +57,7 @@ void snw::socket::set_blocking(bool blocking) {
 
     int flags = fcntl(fd_, F_GETFL, 0);
     if (flags < 0) {
-        throw std::runtime_error("failed to set socket option"); // TODO: details
+        throw std::runtime_error(strerror(errno));
     }
 
     if (blocking) {
@@ -67,6 +68,6 @@ void snw::socket::set_blocking(bool blocking) {
     }
 
     if (fcntl(fd_, F_SETFL, flags) < 0) {
-        throw std::runtime_error("failed to set socket option"); // TODO: details
+        throw std::runtime_error(strerror(errno));
     }
 }

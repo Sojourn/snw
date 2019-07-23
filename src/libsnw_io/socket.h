@@ -39,6 +39,9 @@ public:
 
     void set_blocking(bool blocking);
 
+    bool connect(const address& addr);
+    bool is_connected() const;
+
 private:
     int fd_;
 };

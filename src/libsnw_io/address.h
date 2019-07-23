@@ -21,6 +21,9 @@ public:
 
     address& operator=(const address& rhs);
 
+    bool operator==(const address& rhs) const;
+    bool operator!=(const address& rhs) const;
+
     explicit operator bool() const;
 
     socket_address_family address_family() const;
