@@ -12,6 +12,7 @@ snw::address::address() {
 snw::address::address(const char* name, socket_address_family address_family) {
     memset(&storage_, 0, sizeof(storage_));
 
+    // TODO: clean up this switch statement
     switch (address_family) {
     case socket_address_family::ipv4: {
         sockaddr_in& sin = addr_ipv4();
@@ -29,7 +30,13 @@ snw::address::address(const char* name, socket_address_family address_family) {
         struct hostent hbuf;
         struct hostent* hres = nullptr;
 
-        rc = gethostbyname2_r(name, static_cast<int>(address_family), &hbuf, buf, sizeof(buf), &hres, &err);
+        if (address_family == socket_address_family::unknown) {
+            rc = gethostbyname_r(name, &hbuf, buf, sizeof(buf), &hres, &err);
+        }
+        else {
+            rc = gethostbyname2_r(name, static_cast<int>(address_family), &hbuf, buf, sizeof(buf), &hres, &err);
+        }
+
         if (rc == 0 && hres) {
             // TODO: store one of these
             // while (*hres->h_aliases) {
@@ -56,7 +63,7 @@ snw::address::address(const char* name, socket_address_family address_family) {
         //     throw std::runtime_error("buffer overflow");
         // }
         else {
-            throw std::runtime_error("failed to resolve host");
+            throw std::runtime_error(strerror(errno));
         }
         break;
     }
