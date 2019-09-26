@@ -25,6 +25,7 @@ set(SNW_HDRS
     type_traits.h
     slot_allocator.h
     slot_allocator.hpp
+    registry.h
 )
 
 add_library(snw_util ${SNW_SRCS} ${SNW_HDRS})
